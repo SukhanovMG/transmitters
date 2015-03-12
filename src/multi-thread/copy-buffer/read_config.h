@@ -7,7 +7,9 @@
 
 
 typedef struct {
-	int num_of_clients;
+	size_t num_of_clients;
+	size_t buffer_size;
+	size_t bitrate;
 } config_struct;
 
-config_struct parse_config(char *fname);
+int read_config_parse(char *fname, config_struct* target_config_struct);
