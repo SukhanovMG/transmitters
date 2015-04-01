@@ -1,36 +1,125 @@
+
 #include "read_config.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
+#include <sys/stat.h>
+#include <getopt.h>
+
+static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 
 void thread_function();
 
+
+/*
+	Вывод помощи по параметрам командной строки
+*/
+static void main_show_help()
+{
+	printf("Usage: mt_copy [parameters]...\n");
+	printf("\n");
+	printf("Arguments:\n");
+	printf("  -c, --config=PATH    use specific configuration file\n");
+	printf("  -h, --help           show this help and exit\n");
+}
+
+/*
+	Фукнция разбора полученных параметров приложения.
+	Производится разбор полученных параметров и выполняются простейшие действия,
+	такие как вывод помощи и пр.
+
+	argc количество аргументов
+	argv массив аргументов
+
+	0: все параметры успешно разобраны\n
+	-1: произошла ошибка и надо завершить приложение\n
+	1: надо завершить приложение (вывод версии или подсказки или неизвестный параметр)
+*/
+static int main_args_handle(int argc, char *argv[])
+{
+	struct stat buffer;
+	int res = 0;
+	int option_index = -1;
+	const char *short_options = "ch";
+	const struct option long_options[] = {
+			{
+					"config",
+					required_argument,
+					NULL,
+					'c' },
+			{
+					"help",
+					no_argument,
+					NULL,
+					'h' }
+	};
+
+	memset(main_conf_file, 0, sizeof(main_conf_file));
+
+	while ( ( res = getopt_long(argc, argv, short_options, long_options, &option_index) ) != -1 ) {
+		switch(res){
+			case 'c':
+				strncpy(main_conf_file, optarg, sizeof(main_conf_file));
+				break;
+			case 'h':
+			case '?':
+			default:
+				main_show_help();
+				return 1;
+		}
+		option_index = -1;
+	}
+
+	/* неизвестно имя и расположение конфигурационного файла */
+	if (stat(main_conf_file, &buffer)) {
+		fprintf(stderr, "%s[%d]: configuration file failed\n", __FILE__, __LINE__);
+		return -1;
+	}
+
+	return 0;
+}
+
+
 int main(int argc, char *argv[])
 {
-	config_struct *cfg;
-	pthread_t *thread_mas;
+	int rc = EXIT_SUCCESS;
+	int res, ret;
 
-	cfg = malloc(sizeof(config_struct));
-	read_config_parse("conf", cfg);
-	printf("num_of_clients = %lu\n", cfg->num_of_clients);
-	printf("buffer_size = %lu\n", cfg->buffer_size);
-	printf("bitrate = %lu\n", cfg->bitrate);	
+	memset(main_conf_file, 0, sizeof(main_conf_file));
 
-	thread_mas = (pthread_t *) malloc(cfg->num_of_clients * sizeof(pthread_t));
-
-	for(int i = 0; i < cfg->num_of_clients; i++)
-	{
-		pthread_create(&thread_mas[i], NULL, (void *(*)(void*)) thread_function, NULL);
+	/* разбор параметров командной строки приложения */
+	if ((res = main_args_handle(argc, argv)) != 0) {
+		if (res < 0) {
+			rc = EXIT_FAILURE;
+		}
+		goto application_exit;
 	}
 
-	for(int i = 0; i < cfg->num_of_clients; i++)
-	{
-		pthread_join(thread_mas[i], NULL);
+
+
+	/* Инициализация и чтение конфигурационного файла */
+	if (read_config_init(main_conf_file) != ReadConfigStatus_SUCCESS) {
+		rc = EXIT_FAILURE;
+		goto application_exit;
+	}
+	if (read_config() != ReadConfigStatus_SUCCESS) {
+		rc = EXIT_FAILURE;
+		goto application_exit;
 	}
 
-	free(thread_mas);
-	free(cfg);
-	return EXIT_SUCCESS;
+
+	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
+
+application_exit: {
+
+	printf("Application stoping");
+	/* удаление ресурсов конфигурации */
+	read_config_destroy();
+	printf("Application stoped");
+
+	return rc;
+}
 }
 
 void thread_function()

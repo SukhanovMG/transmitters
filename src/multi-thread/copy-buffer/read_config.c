@@ -1,109 +1,75 @@
 #include "read_config.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
 
-static void trim_spaces(char *s)
+
+read_config_parameters_t configuration;
+static config_t cfg; /*!< Котекст библиотеки чтения файлов конфигурации */
+static int configuration_inited = 0; /*!< флаг инициализированности конфигурации */
+
+/**
+ * Инициализация конфигурации
+ * @param config_file путь и имя файла конфигурации
+ * @return ReadConfigStatus_ERROR, TranscoderReadConfigStatus_SUCCESS
+ */
+ReadConfigStatus read_config_init(const char *config_file)
 {
-	char *start = s;
-	char *end = &s[strlen(s) - 1];
+	if (configuration_inited)
+		return ReadConfigStatus_SUCCESS;
 
-	// удаляем пробелы справа
-	while ( (isspace(*end)) && end > s )
-		end--;
-
-	*(end + 1) = '\0';
-
-	// слева
-	while ( (isspace(*start)) && start < end )
-		start++;
-
-	// и копируем в начало буфера
-	strcpy(s, start);	
+	memset(&configuration, 0, sizeof(configuration));
+	strncpy(configuration.config_file, config_file, strlen(config_file));
+	config_init(&cfg);
+	configuration_inited = 1;
+	return ReadConfigStatus_SUCCESS;
 }
 
-
-int config_parse(char *fname, config_struct *target_config_struct)
+/**
+ * Уничтожение ресурсов занятых конфигурационными данными
+ * @return Transcoder_ReadConfigStatus_ERROR, TranscoderReadConfigStatus
+ */
+ReadConfigStatus read_config_destroy(void)
 {
-	FILE* config_file;
-	char buf[MAX_LINE];
-	char *token;
-	config_struct cfg;
+	if (!configuration_inited)
+		return ReadConfigStatus_SUCCESS;
 
-	if (target_config_struct == NULL)
-		return -1;
+	configuration_inited = 0;
+	config_destroy(&cfg);
 
-	// стандартные значения, на всякий случай
-	cfg.num_of_clients = 1;
-	cfg.buffer_size = 1024;
-	cfg.bitrate = 16;
+	/* Освобождение ресурсов */
+	if (configuration.config_file)
+		free(configuration.config_file);
+	memset(&configuration, 0, sizeof(configuration));
+}
 
-	config_file = fopen(fname, "r");
-	if (config_file == NULL)
-		return -1;
+/**
+ * @brief Чтение конфигурации
+ * @return Transcoder_ReadConfigStatus_ERROR, TranscoderReadConfigStatus
+ */
+ReadConfigStatus read_config(void)
+{
+	const char *path;
+	struct stat st;
 
-	while(!feof(config_file))
-	{
-		if (fgets(buf, MAX_LINE, config_file))
-		{
-			char key[MAX_LINE], value[MAX_LINE];
-
-			// комментарии и пустые строки
-			if (buf[0] == '\n' || buf[0] == '#')
-				continue;
-
-			// получаем строку до знака =
-			token = strtok(buf, "=");
-			if (token == NULL)
-				continue;
-			else
-				strncpy(key, token, MAX_LINE);
-			// обрезаем ей пробелы
-			trim_spaces(key);
-
-			// и после знака равно
-			token = strtok(NULL, "=");
-			if (token == NULL)
-				continue;
-			else
-				strncpy(value, token, MAX_LINE);
-			trim_spaces(value);
-
-			// параметр "число клиентов"
-			if (strcmp(key, "num_of_clients") == 0)
-			{
-				size_t val = (size_t) atoi(value);
-				if (val <= 0)
-					continue;
-				else
-					cfg.num_of_clients = val;
-			}
-
-			// параметр "размер буфера"
-			if (strcmp(key, "buffer_size") == 0)
-			{
-				size_t val = (size_t) atoi(value);
-				if (val <= 0)
-					continue;
-				else
-					cfg.buffer_size = val;
-			}
-
-
-			// параметр "битрейт"
-			if (strcmp(key, "bitrate") == 0)
-			{
-				size_t val = (size_t) atoi(value);
-				if (val <= 0)
-					continue;
-				else
-					cfg.buffer_size = val;
-			}
-
-		}
+	if (!configuration_inited) {
+		return ReadConfigStatus_ERROR;
 	}
 
-	fclose(config_file);
+	/* Чтение конфигурационного файла */
+	if (!config_read_file(&cfg, configuration.config_file)) {
+		goto read_config_error;
+	}
 
-	*(target_config_struct) = cfg;
+	if (!config_lookup_int(&cfg, "WorkThreadsCount", &configuration.work_threads_count)) {
+		goto read_config_error;
+	}
 
-	return 0;
+
+	return ReadConfigStatus_SUCCESS;
+
+read_config_error:
+	read_config_destroy();
+	return ReadConfigStatus_ERROR;
 }
-
