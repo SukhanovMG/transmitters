@@ -1,8 +1,11 @@
-#include "read_config.h"
+#include "tm_read_config.h"
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/stat.h>
+
+#include "tm_alloc.h"
 
 
 read_config_parameters_t configuration;
@@ -20,7 +23,12 @@ ReadConfigStatus read_config_init(const char *config_file)
 		return ReadConfigStatus_SUCCESS;
 
 	memset(&configuration, 0, sizeof(configuration));
-	strncpy(configuration.config_file, config_file, strlen(config_file));
+
+	if (!(configuration.config_file = (char*)tm_strdup(config_file, -1))) {
+		fprintf(stderr, "%s[%d]: Allocate memrory error\n", __FILE__, __LINE__);
+		return ReadConfigStatus_ERROR;
+	}
+
 	config_init(&cfg);
 	configuration_inited = 1;
 	return ReadConfigStatus_SUCCESS;
@@ -40,8 +48,10 @@ ReadConfigStatus read_config_destroy(void)
 
 	/* Освобождение ресурсов */
 	if (configuration.config_file)
-		free(configuration.config_file);
+		tm_free(configuration.config_file);
 	memset(&configuration, 0, sizeof(configuration));
+
+	return ReadConfigStatus_SUCCESS;
 }
 
 /**
@@ -50,8 +60,6 @@ ReadConfigStatus read_config_destroy(void)
  */
 ReadConfigStatus read_config(void)
 {
-	const char *path;
-	struct stat st;
 
 	if (!configuration_inited) {
 		return ReadConfigStatus_ERROR;

@@ -8,7 +8,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
 find_package(Pthread REQUIRED)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
 
 include_directories("${CMAKE_BINARY_DIR}/libconfig/lib")
 
@@ -31,13 +31,13 @@ add_custom_command(
 
 
 set(SRC main.c)
-set(LIB read_config.c)
-add_library(read_config STATIC ${LIB})
+set(LIB tm_alloc.c tm_compat.c tm_read_config.c)
+add_library(libs STATIC ${LIB})
 
-add_dependencies(read_config libconfig)
+add_dependencies(libs libconfig)
 
 add_executable(${CMAKE_PROJECT_NAME} ${SRC})
-target_link_libraries(${CMAKE_PROJECT_NAME} read_config
+target_link_libraries(${CMAKE_PROJECT_NAME} libs
                                             ${PTHREAD_LIBRARIES}
                                             ${CMAKE_BINARY_DIR}/libconfig/lib/.libs/libconfig.a
                                             )

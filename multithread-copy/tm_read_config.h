@@ -1,5 +1,5 @@
-#ifndef READ_CONFIG_H_
-#define READ_CONFIG_H_
+#ifndef TM_READ_CONFIG_H_
+#define TM_READ_CONFIG_H_
 
 #include <libconfig.h>
 #include <inttypes.h>
@@ -27,4 +27,4 @@ ReadConfigStatus read_config_init(const char *config_file);
 ReadConfigStatus read_config_destroy();
 ReadConfigStatus read_config();
 
-#endif /* READ_CONFIG_H_ */
+#endif /* TM_READ_CONFIG_H_ */

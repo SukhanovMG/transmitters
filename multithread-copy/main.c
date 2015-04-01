@@ -1,11 +1,12 @@
 
-#include "read_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <getopt.h>
+#include "tm_read_config.h"
+#include "tm_compat.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 
@@ -41,7 +42,7 @@ static int main_args_handle(int argc, char *argv[])
 	struct stat buffer;
 	int res = 0;
 	int option_index = -1;
-	const char *short_options = "ch";
+	const char *short_options = "c:h";
 	const struct option long_options[] = {
 			{
 					"config",
@@ -60,7 +61,7 @@ static int main_args_handle(int argc, char *argv[])
 	while ( ( res = getopt_long(argc, argv, short_options, long_options, &option_index) ) != -1 ) {
 		switch(res){
 			case 'c':
-				strncpy(main_conf_file, optarg, sizeof(main_conf_file));
+				tm_strlcpy(main_conf_file, optarg, sizeof(main_conf_file));
 				break;
 			case 'h':
 			case '?':
@@ -73,7 +74,7 @@ static int main_args_handle(int argc, char *argv[])
 
 	/* неизвестно имя и расположение конфигурационного файла */
 	if (stat(main_conf_file, &buffer)) {
-		fprintf(stderr, "%s[%d]: configuration file failed\n", __FILE__, __LINE__);
+		fprintf(stderr, "%s[%d]: configuration file (%s) failed\n", __FILE__, __LINE__, main_conf_file);
 		return -1;
 	}
 
@@ -113,10 +114,10 @@ int main(int argc, char *argv[])
 
 application_exit: {
 
-	printf("Application stoping");
+	printf("Application stoping\n");
 	/* удаление ресурсов конфигурации */
 	read_config_destroy();
-	printf("Application stoped");
+	printf("Application stoped\n");
 
 	return rc;
 }
