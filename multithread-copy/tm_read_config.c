@@ -71,6 +71,7 @@ ReadConfigStatus read_config(void)
 	}
 
 	if (!config_lookup_int(&cfg, "WorkThreadsCount", &configuration.work_threads_count)) {
+		fprintf(stderr, "Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}
 

@@ -7,15 +7,13 @@
 #include <getopt.h>
 #include "tm_read_config.h"
 #include "tm_compat.h"
+#include "tm_alloc.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 
 void thread_function();
 
-
-/*
-	Вывод помощи по параметрам командной строки
-*/
+//Вывод помощи по параметрам командной строки
 static void main_show_help()
 {
 	printf("Usage: mt_copy [parameters]...\n");
@@ -27,14 +25,10 @@ static void main_show_help()
 
 /*
 	Фукнция разбора полученных параметров приложения.
-	Производится разбор полученных параметров и выполняются простейшие действия,
-	такие как вывод помощи и пр.
-
 	argc количество аргументов
 	argv массив аргументов
-
-	0: все параметры успешно разобраны\n
-	-1: произошла ошибка и надо завершить приложение\n
+	0: все параметры успешно разобраны
+	-1: произошла ошибка и надо завершить приложение
 	1: надо завершить приложение (вывод версии или подсказки или неизвестный параметр)
 */
 static int main_args_handle(int argc, char *argv[])
@@ -81,6 +75,13 @@ static int main_args_handle(int argc, char *argv[])
 	return 0;
 }
 
+typedef struct {
+	pthread_cond_t cond;
+	pthread_mutex_t mutex;
+	void **pointers;
+	unsigned int pointers_count;
+} thread_queue_t;
+
 
 int main(int argc, char *argv[])
 {
@@ -97,8 +98,6 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
-
-
 	/* Инициализация и чтение конфигурационного файла */
 	if (read_config_init(main_conf_file) != ReadConfigStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
@@ -109,8 +108,55 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
-
 	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
+
+	pthread_t *threads = tm_alloc(configuration.work_threads_count * sizeof(pthread_t));
+	thread_queue_t *queues = tm_alloc(configuration.work_threads_count * sizeof(thread_queue_t));
+	void *thread_status;
+
+
+	for (unsigned long i = 0; i < configuration.work_threads_count; i++)
+	{
+		pthread_cond_init(&queues[i].cond, NULL);
+		pthread_mutex_init(&queues[i].mutex, NULL);
+		pthread_mutex_lock(&queues[i].mutex);
+		queues[i].pointers = tm_alloc(10*sizeof(void*));
+		queues[i].pointers_count = 0;
+		pthread_create(&threads[i], NULL, (void*(*)(void *)) thread_function, &queues[i]);
+	}
+
+	printf("Threads created. Queues initialised. Mutexes locked.\n");
+	printf("Press any to unlock mutexes.\n"); getchar();
+
+	for (int i = 0; i < configuration.work_threads_count; i++)
+		pthread_mutex_unlock(&queues[i].mutex);
+
+	sleep(1);
+	printf("Press to put buffers in queues and wakeup threads.\n"); getchar();
+
+	for (int i = 0; i < configuration.work_threads_count; i++)
+	{
+		pthread_mutex_lock(&queues[i].mutex);
+		queues[i].pointers[0] = tm_alloc(1024);
+		queues[i].pointers_count++;
+		pthread_cond_signal(&queues[i].cond);
+		pthread_mutex_unlock(&queues[i].mutex);
+	}
+
+	sleep(3);
+	printf("Press any.\n"); getchar();
+
+	for (int i = 0; i < configuration.work_threads_count; i++)
+	{
+		pthread_mutex_lock(&queues[i].mutex);
+		pthread_join(threads[i], &thread_status);
+		tm_free(queues[i].pointers);
+		pthread_mutex_destroy(&queues[i].mutex);
+		pthread_cond_destroy(&queues[i].cond);
+	}
+
+	tm_free(queues);
+	tm_free(threads);
 
 application_exit: {
 
@@ -123,7 +169,18 @@ application_exit: {
 }
 }
 
-void thread_function()
+void thread_function(void* queue)
 {
-	printf("Thread created\n");
+
+	thread_queue_t *q = (thread_queue_t*) queue;
+	pthread_mutex_lock(&q->mutex);
+	while(q->pointers_count == 0)
+	{
+		printf("No buffers for me...waiting.\n");
+		pthread_cond_wait(&q->cond, &q->mutex);
+	}
+
+	tm_free(q->pointers[0]);
+	pthread_mutex_unlock(&q->mutex);
+
 }
