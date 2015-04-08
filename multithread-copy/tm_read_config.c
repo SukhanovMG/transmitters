@@ -75,6 +75,15 @@ ReadConfigStatus read_config(void)
 		goto read_config_error;
 	}
 
+	if (!config_lookup_int(&cfg, "BlockSize", &configuration.block_size)) {
+		fprintf(stderr, "Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
+	if (!config_lookup_int(&cfg, "Bitrate", &configuration.bitrate)) {
+		fprintf(stderr, "Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
 
 
 	return ReadConfigStatus_SUCCESS;
