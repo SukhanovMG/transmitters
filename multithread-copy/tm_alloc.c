@@ -79,13 +79,13 @@ static char *tm_strdup_inner(const char *string, int length)
 
 tm_alloc_t _tm_alloc(size_t size)
 {
-	printf("alloc %u\n", size);
+	//printf("alloc %u\n", size);
 	return tm_alloc_inner(size);
 }
 
 tm_alloc_t _tm_calloc(size_t size)
 {
-	printf("calloc %u\n", size);
+	//printf("calloc %u\n", size);
 	return tm_calloc_inner(size);
 }
 
@@ -96,7 +96,7 @@ tm_alloc_t _tm_realloc(tm_alloc_t memptr, size_t new_size)
 
 void _tm_free(tm_alloc_t ptr)
 {
-	printf("free\n");
+	//printf("free\n");
 	tm_free_inner(ptr);
 }
 

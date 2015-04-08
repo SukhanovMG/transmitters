@@ -8,6 +8,7 @@
 #include "tm_read_config.h"
 #include "tm_compat.h"
 #include "tm_alloc.h"
+#include "tm_queue.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 
@@ -75,13 +76,6 @@ static int main_args_handle(int argc, char *argv[])
 	return 0;
 }
 
-typedef struct {
-	pthread_cond_t cond;
-	pthread_mutex_t mutex;
-	void **pointers;
-	unsigned int pointers_count;
-} thread_queue_t;
-
 
 int main(int argc, char *argv[])
 {
@@ -111,48 +105,26 @@ int main(int argc, char *argv[])
 	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
 
 	pthread_t *threads = tm_alloc(configuration.work_threads_count * sizeof(pthread_t));
-	thread_queue_t *queues = tm_alloc(configuration.work_threads_count * sizeof(thread_queue_t));
+	tm_queue_queue *queues = tm_alloc(configuration.work_threads_count * sizeof(tm_queue_queue));
 	void *thread_status;
 
 
-	for (unsigned long i = 0; i < configuration.work_threads_count; i++)
+	for (int i = 0; i < configuration.work_threads_count; i++)
 	{
-		pthread_cond_init(&queues[i].cond, NULL);
-		pthread_mutex_init(&queues[i].mutex, NULL);
-		pthread_mutex_lock(&queues[i].mutex);
-		queues[i].pointers = tm_alloc(10*sizeof(void*));
-		queues[i].pointers_count = 0;
+		tm_queue_init(&queues[i]);
 		pthread_create(&threads[i], NULL, (void*(*)(void *)) thread_function, &queues[i]);
 	}
 
-	printf("Threads created. Queues initialised. Mutexes locked.\n");
-	printf("Press any to unlock mutexes.\n"); getchar();
-
-	for (int i = 0; i < configuration.work_threads_count; i++)
-		pthread_mutex_unlock(&queues[i].mutex);
-
-	sleep(1);
-	printf("Press to put buffers in queues and wakeup threads.\n"); getchar();
 
 	for (int i = 0; i < configuration.work_threads_count; i++)
 	{
-		pthread_mutex_lock(&queues[i].mutex);
-		queues[i].pointers[0] = tm_alloc(1024);
-		queues[i].pointers_count++;
-		pthread_cond_signal(&queues[i].cond);
-		pthread_mutex_unlock(&queues[i].mutex);
+		tm_queue_push_back(&queues[i]);
 	}
 
-	sleep(3);
-	printf("Press any.\n"); getchar();
-
 	for (int i = 0; i < configuration.work_threads_count; i++)
 	{
-		pthread_mutex_lock(&queues[i].mutex);
 		pthread_join(threads[i], &thread_status);
-		tm_free(queues[i].pointers);
-		pthread_mutex_destroy(&queues[i].mutex);
-		pthread_cond_destroy(&queues[i].cond);
+		tm_queue_destroy(&queues[i]);
 	}
 
 	tm_free(queues);
@@ -171,16 +143,8 @@ application_exit: {
 
 void thread_function(void* queue)
 {
-
-	thread_queue_t *q = (thread_queue_t*) queue;
-	pthread_mutex_lock(&q->mutex);
-	while(q->pointers_count == 0)
-	{
-		printf("No buffers for me...waiting.\n");
-		pthread_cond_wait(&q->cond, &q->mutex);
-	}
-
-	tm_free(q->pointers[0]);
-	pthread_mutex_unlock(&q->mutex);
-
+	void *block;
+	printf("thread\n");
+	block = tm_queue_pop_front(queue);
+	tm_free(block);
 }

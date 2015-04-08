@@ -76,6 +76,7 @@ ReadConfigStatus read_config(void)
 	}
 
 
+
 	return ReadConfigStatus_SUCCESS;
 
 read_config_error:
