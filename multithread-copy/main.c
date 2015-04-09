@@ -8,7 +8,7 @@
 #include "tm_read_config.h"
 #include "tm_compat.h"
 #include "tm_alloc.h"
-#include "tm_queue.h"
+#include "tm_thread.c"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 
@@ -104,32 +104,8 @@ int main(int argc, char *argv[])
 
 	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
 
-	pthread_t *threads = tm_alloc(configuration.work_threads_count * sizeof(pthread_t));
-	tm_queue_queue *queues = tm_alloc(configuration.work_threads_count * sizeof(tm_queue_queue));
-	void *thread_status;
-
-
-	for (int i = 0; i < configuration.work_threads_count; i++)
-	{
-		tm_queue_init(&queues[i]);
-		pthread_create(&threads[i], NULL, (void*(*)(void *)) thread_function, &queues[i]);
-	}
-
-
-	for (int i = 0; i < configuration.work_threads_count; i++)
-	{
-		for (int j = 0; j < 10; j++)
-			tm_queue_push_back(&queues[i]);
-	}
-
-	for (int i = 0; i < configuration.work_threads_count; i++)
-	{
-		pthread_join(threads[i], &thread_status);
-		tm_queue_destroy(&queues[i]);
-	}
-
-	tm_free(queues);
-	tm_free(threads);
+	tm_threads_init(1);
+	tm_threads_shutdown();
 
 application_exit: {
 

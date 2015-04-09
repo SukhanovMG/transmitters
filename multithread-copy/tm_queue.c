@@ -1,24 +1,41 @@
 
 #include "tm_queue.h"
 #include "tm_read_config.h"
+#include "tm_alloc.h"
 #include <stdio.h>
 
 
-void tm_queue_init(tm_queue_queue *q)
+tm_queue_t* tm_queue_create()
 {
+	tm_queue_t *q = tm_alloc(sizeof(tm_queue_t));
+
+	if(!q)
+		return q;
+
 	pthread_mutex_init(&q->mutex, NULL);
 	pthread_cond_init(&q->cond, NULL);
 	q->buffers = tm_calloc(QUEUE_SIZE * sizeof(void*));
 	q->size = 0;
 	q->in = 0;
 	q->out = 0;
+
+	return q;
 }
 
-void tm_queue_destroy(tm_queue_queue *q)
+void tm_queue_destroy(tm_queue_t *q)
 {
 	pthread_mutex_destroy(&q->mutex);
 	pthread_cond_destroy(&q->cond);
+	while (q->size > 0)
+	{
+		tm_free(q->buffers[q->out]);
+		q->buffers[q->out] = NULL;
+		q->size--;
+		q->out++;
+		q->out %= QUEUE_SIZE;
+	}
 	tm_free(q->buffers);
+	tm_free(q);
 }
 
 /*
@@ -30,7 +47,7 @@ void tm_queue_destroy(tm_queue_queue *q)
  * увеличивается указатель записи, размер, посылается сигнал, чтобы
  * разбудить, если рабочий поток спит на мьютексе и разлачивается мьюеткс.
 */
-int tm_queue_push_back(tm_queue_queue *q)
+int tm_queue_push_back(tm_queue_t *q)
 {
 	pthread_mutex_lock(&q->mutex);
 	if (q->size == QUEUE_SIZE)
@@ -62,7 +79,7 @@ int tm_queue_push_back(tm_queue_queue *q)
  * Рабочий поток должен его потом освободить.
 */
 
-void* tm_queue_pop_front(tm_queue_queue *q)
+void* tm_queue_pop_front(tm_queue_t *q)
 {
 	void* res = NULL;
 

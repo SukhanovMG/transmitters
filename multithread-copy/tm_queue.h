@@ -8,7 +8,7 @@
 // Вынести в конфиг
 #define QUEUE_SIZE 10
 
-typedef struct _tm_queue_queue {
+typedef struct _tm_queue_t {
 
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
@@ -17,11 +17,11 @@ typedef struct _tm_queue_queue {
 	int in;
 	int out;
 
-} tm_queue_queue;
+} tm_queue_t;
 
-void tm_queue_init(tm_queue_queue *q);
-void tm_queue_destroy(tm_queue_queue *q);
-int tm_queue_push_back(tm_queue_queue *q);
-void* tm_queue_pop_front(tm_queue_queue *q);
+tm_queue_t* tm_queue_create();
+void tm_queue_destroy(tm_queue_t *q);
+int tm_queue_push_back(tm_queue_t *q);
+void* tm_queue_pop_front(tm_queue_t *q);
 
 #endif /* TM_QUEUE_H */
