@@ -118,7 +118,8 @@ int main(int argc, char *argv[])
 
 	for (int i = 0; i < configuration.work_threads_count; i++)
 	{
-		tm_queue_push_back(&queues[i]);
+		for (int j = 0; j < 10; j++)
+			tm_queue_push_back(&queues[i]);
 	}
 
 	for (int i = 0; i < configuration.work_threads_count; i++)
@@ -145,6 +146,7 @@ void thread_function(void* queue)
 {
 	void *block;
 	printf("thread\n");
-	block = tm_queue_pop_front(queue);
+	for (int j = 0; j < 10; j++)
+		block = tm_queue_pop_front(queue);
 	tm_free(block);
 }
