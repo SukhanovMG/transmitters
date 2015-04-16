@@ -8,7 +8,8 @@
 #include "tm_read_config.h"
 #include "tm_compat.h"
 #include "tm_alloc.h"
-#include "tm_thread.c"
+//#include "tm_thread.c"
+#include "tm_queue.c"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 
@@ -103,9 +104,11 @@ int main(int argc, char *argv[])
 	}
 
 	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
-
+	/*
 	tm_threads_init(1);
 	tm_threads_shutdown();
+	*/
+
 
 application_exit: {
 
