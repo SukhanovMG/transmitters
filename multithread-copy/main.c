@@ -8,12 +8,11 @@
 #include "tm_read_config.h"
 #include "tm_compat.h"
 #include "tm_alloc.h"
-//#include "tm_thread.c"
-#include "tm_queue.c"
+#include "tm_thread.c"
+
+#include "syslog.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
-
-void thread_function();
 
 //Вывод помощи по параметрам командной строки
 static void main_show_help()
@@ -104,10 +103,17 @@ int main(int argc, char *argv[])
 	}
 
 	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
-	/*
-	tm_threads_init(1);
+
+	int logopt = LOG_NDELAY | LOG_NDELAY | LOG_PERROR | LOG_PID;
+	int facility = LOG_USER;
+	openlog(">>", logopt, facility);
+
+	tm_threads_init(configuration.work_threads_count);
+	tm_threads_work();
 	tm_threads_shutdown();
-	*/
+
+	closelog();
+
 
 
 application_exit: {
@@ -119,13 +125,4 @@ application_exit: {
 
 	return rc;
 }
-}
-
-void thread_function(void* queue)
-{
-	void *block;
-	printf("thread\n");
-	for (int j = 0; j < 10; j++)
-		block = tm_queue_pop_front(queue);
-	tm_free(block);
 }

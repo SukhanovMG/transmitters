@@ -8,5 +8,6 @@ typedef enum _TMThreadStatus {
 
 TMThreadStatus tm_threads_init(int count);
 TMThreadStatus tm_threads_shutdown();
+TMThreadStatus tm_threads_work();
 
 #endif /* TM_THREAD_H */

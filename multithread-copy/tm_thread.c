@@ -1,10 +1,11 @@
 #include "tm_thread.h"
 #include "tm_queue.h"
+#include "tm_block.h"
 #include <pthread.h>
 
 typedef struct _tm_thread_t {
 	pthread_t thread;
-	tm_queue_t *queue;
+	tm_queue_ctx *queue;
 	int shutdown;
 } tm_thread_t;
 
@@ -13,11 +14,19 @@ typedef struct _tm_threads_t {
 	int threads_num;
 } tm_threads_t;
 
-tm_threads_t work_threads;
+static tm_threads_t work_threads;
 
-static void tm_thread_function(void* queue)
+static void tm_thread_function(void* thread)
 {
+	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
+	tm_block *block = NULL;
+	void *copy = NULL;
+	copy = tm_alloc(configuration.block_size);
 
+	block = tm_queue_pop_front(thread_ctx->queue);
+	copy = memcpy(copy, block->block, configuration.block_size);
+	tm_refcount_release((void*)block);
+	tm_free(copy);
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
@@ -73,7 +82,7 @@ TMThreadStatus tm_threads_init(int count)
 		return status;
 
 	work_threads.threads_num = 0;
-	work_threads.threads = tm_alloc(count * sizeof(tm_thread_t));
+	work_threads.threads = tm_calloc(count * sizeof(tm_thread_t));
 
 	if(!work_threads.threads)
 		return status;
@@ -103,4 +112,18 @@ TMThreadStatus tm_threads_shutdown()
 	status = TMThreadStatus_SUCCESS;
 	return status;
 
+}
+
+TMThreadStatus tm_threads_work()
+{
+	TMThreadStatus status = TMThreadStatus_ERROR;
+	tm_block *block = tm_block_create();
+	for (int i = 0; i < work_threads.threads_num; i++)
+	{
+		tm_queue_push_back(work_threads.threads[i].queue, block);
+	}
+	tm_refcount_release((void*)block);
+
+	status = TMThreadStatus_SUCCESS;
+	return status;
 }
