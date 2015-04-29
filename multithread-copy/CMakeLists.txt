@@ -47,7 +47,7 @@ add_custom_command(
 
 
 set(SRC main.c)
-set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c)
+set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c)
 add_library(libs STATIC ${LIB})
 
 add_dependencies(libs libconfig)

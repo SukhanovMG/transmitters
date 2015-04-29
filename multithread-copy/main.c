@@ -9,6 +9,7 @@
 #include "tm_compat.h"
 #include "tm_alloc.h"
 #include "tm_thread.c"
+#include "tm_logging.h"
 
 #include "syslog.h"
 
@@ -92,6 +93,14 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
+
+	/* инициализация лога, инициализируется при демонизации,
+	 * здесь нужно, если запускаемся из консоли */
+	if(tm_log_init("transmitter") != TMLogStatus_SUCCESS) {
+		rc = EXIT_FAILURE;
+		goto application_exit;
+	}
+
 	/* Инициализация и чтение конфигурационного файла */
 	if (read_config_init(main_conf_file) != ReadConfigStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
@@ -102,26 +111,23 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
-	printf("WorkThreadsCount = %d\n", configuration.work_threads_count);
-
-	int logopt = LOG_NDELAY | LOG_NDELAY | LOG_PERROR | LOG_PID;
-	int facility = LOG_USER;
-	openlog(">>", logopt, facility);
+	TM_LOG_TRACE("WorkThreadsCount = %d\n", configuration.work_threads_count);
 
 	tm_threads_init(configuration.work_threads_count);
 	tm_threads_work();
 	tm_threads_shutdown();
 
-	closelog();
-
 
 
 application_exit: {
 
-	printf("Application stoping\n");
+	TM_LOG_TRACE("Application stoping\n");
 	/* удаление ресурсов конфигурации */
 	read_config_destroy();
-	printf("Application stoped\n");
+	TM_LOG_TRACE("Application stoped\n");
+
+	/* завершение логирования */
+	tm_log_destroy();
 
 	return rc;
 }
