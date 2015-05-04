@@ -4,6 +4,7 @@
 #include <libconfig.h>
 #include <inttypes.h>
 #include <linux/limits.h>
+#include <time.h>
 
 /**
  * Перечислитель статусов чтения настроек
@@ -21,6 +22,7 @@ typedef struct _read_config_parameters_t {
 		int work_threads_count; /*!< Количество рабочих потоков */
 		int block_size; /*!< Размер передаваемого блока */
 		int bitrate; /*!< Битрейт информации как бы поступающей на вход */
+		struct timespec sleep_time;
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */

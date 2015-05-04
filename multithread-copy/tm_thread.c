@@ -1,7 +1,11 @@
 #include "tm_thread.h"
 #include "tm_queue.h"
 #include "tm_block.h"
+#include "tm_logging.h"
+#include "tm_read_config.h"
 #include <pthread.h>
+
+#include <signal.h>
 
 typedef struct _tm_thread_t {
 	pthread_t thread;
@@ -13,6 +17,10 @@ typedef struct _tm_threads_t {
 	tm_thread_t *threads;
 	int threads_num;
 } tm_threads_t;
+
+
+static tm_shutdown_flag = 0;
+
 
 static tm_threads_t work_threads;
 
@@ -74,6 +82,15 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 	return status;
 }
 
+/**
+ * Обработчик сигналов.
+ */
+void tm_signal_handler()
+{
+	TM_LOG_TRACE("transcoder_signal_handler");
+	tm_shutdown_flag = 1;
+}
+
 TMThreadStatus tm_threads_init(int count)
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
@@ -94,6 +111,12 @@ TMThreadStatus tm_threads_init(int count)
 
 		work_threads.threads_num++; // реальное число созданных потоков
 	}
+
+	signal(SIGINT, tm_signal_handler);
+	signal(SIGTERM, tm_signal_handler);
+	signal(SIGQUIT, tm_signal_handler);
+	signal(SIGTSTP, tm_signal_handler);
+	signal(SIGPWR, tm_signal_handler);
 
 	return TMThreadStatus_SUCCESS;
 
@@ -117,13 +140,25 @@ TMThreadStatus tm_threads_shutdown()
 TMThreadStatus tm_threads_work()
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
+	tm_block *block = NULL;
+	while(!tm_shutdown_flag)
+	{
+		block = tm_block_create();
+		for (int i = 0; i < work_threads.threads_num; i++)
+			tm_queue_push_back(work_threads.threads[i].queue, block);
+		tm_refcount_release((void*)block);
+		nanosleep(&configuration.sleep_time, NULL);
+	}
+
+
+	/*
 	tm_block *block = tm_block_create();
 	for (int i = 0; i < work_threads.threads_num; i++)
 	{
 		tm_queue_push_back(work_threads.threads[i].queue, block);
 	}
 	tm_refcount_release((void*)block);
-
+	*/
 	status = TMThreadStatus_SUCCESS;
 	return status;
 }

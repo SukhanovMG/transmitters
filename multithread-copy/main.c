@@ -113,6 +113,8 @@ int main(int argc, char *argv[])
 
 	TM_LOG_TRACE("WorkThreadsCount = %d\n", configuration.work_threads_count);
 
+
+	TM_LOG_TRACE("sec = %lu; nano = %lu", configuration.sleep_time.tv_sec, configuration.sleep_time.tv_nsec);
 	tm_threads_init(configuration.work_threads_count);
 	tm_threads_work();
 	tm_threads_shutdown();

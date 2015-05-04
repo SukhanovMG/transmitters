@@ -6,7 +6,9 @@
 #include <sys/stat.h>
 
 #include "tm_alloc.h"
+#include "tm_logging.h"
 
+#define POSIX_C_SOURCE 200809L
 
 read_config_parameters_t configuration;
 static config_t cfg; /*!< Котекст библиотеки чтения файлов конфигурации */
@@ -54,6 +56,31 @@ ReadConfigStatus read_config_destroy(void)
 	return ReadConfigStatus_SUCCESS;
 }
 
+ReadConfigStatus read_config_compute_sleep_time()
+{
+	ReadConfigStatus ret = ReadConfigStatus_ERROR;
+
+	struct timespec wait_time;
+	double time_in_seconds = 0;
+
+	if (configuration.block_size <= 0)
+		return ret;
+
+	if (configuration.bitrate <= 0)
+		return ret;
+
+	time_in_seconds = (double) configuration.block_size / (configuration.bitrate / 8 * 1024);
+	wait_time.tv_sec = (int) time_in_seconds;
+	wait_time.tv_nsec = (time_in_seconds - wait_time.tv_sec) * 1000000000;
+
+	if (wait_time.tv_sec > 0 || wait_time.tv_nsec > 0)
+	{
+		configuration.sleep_time = wait_time;
+		ret = ReadConfigStatus_SUCCESS;
+	}
+
+	return ret;
+}
 /**
  * @brief Чтение конфигурации
  * @return Transcoder_ReadConfigStatus_ERROR, TranscoderReadConfigStatus
@@ -71,17 +98,22 @@ ReadConfigStatus read_config(void)
 	}
 
 	if (!config_lookup_int(&cfg, "WorkThreadsCount", &configuration.work_threads_count)) {
-		fprintf(stderr, "Incomplete config file '%s'\n", configuration.config_file);
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}
 
 	if (!config_lookup_int(&cfg, "BlockSize", &configuration.block_size)) {
-		fprintf(stderr, "Incomplete config file '%s'\n", configuration.config_file);
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}
 
 	if (!config_lookup_int(&cfg, "Bitrate", &configuration.bitrate)) {
-		fprintf(stderr, "Incomplete config file '%s'\n", configuration.config_file);
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
+	if (read_config_compute_sleep_time() != ReadConfigStatus_SUCCESS) {
+		TM_LOG_ERROR("Incompatible bitrate and/or block size");
 		goto read_config_error;
 	}
 

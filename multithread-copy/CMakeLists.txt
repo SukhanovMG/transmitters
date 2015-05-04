@@ -14,7 +14,7 @@ endif()
 
 find_package(Pthread REQUIRED)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=c99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99")
 if(CMAKE_BUILD_TYPE MATCHES Release)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -s")
     set(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -O3 -s")

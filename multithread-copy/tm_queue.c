@@ -2,6 +2,7 @@
 #include "tm_queue.h"
 #include "tm_read_config.h"
 #include "tm_alloc.h"
+#include "tm_logging.h"
 #include <stdio.h>
 
 
@@ -30,7 +31,7 @@ tm_queue_ctx *tm_queue_create()
 
 int tm_queue_push_back(tm_queue_ctx *q, tm_block *block)
 {
-
+	TM_LOG_TRACE();
 	tm_queue_elem_ctx *elem = NULL;
 
 	if (!q)
@@ -62,6 +63,7 @@ int tm_queue_push_back(tm_queue_ctx *q, tm_block *block)
 
 tm_block *tm_queue_pop_front(tm_queue_ctx *q)
 {
+	TM_LOG_TRACE();
 	tm_queue_elem_ctx *elem = NULL;
 	tm_block *block = NULL;
 
