@@ -6,8 +6,7 @@
 
 #include "tm_alloc.h"
 #include "tm_compat.h"
-
-#define TM_ALLOC_MEMALIGN_USE 0
+#include "tm_logging.h"
 
 
 /**
@@ -74,6 +73,41 @@ static char *tm_strdup_inner(const char *string, int length)
 	}
 
 	return str;
+}
+
+
+void _tm_free_d(tm_alloc_t ptr, int ln, char *file, const char *func, char *prm)
+{
+	syslog(LOG_DEBUG, "   FREE %s:[%d]:%s -> [%p] '%s'", file, ln, func, ptr, prm);
+	tm_free_inner(ptr);
+}
+tm_alloc_t _tm_alloc_d(size_t size, int ln, char *file, const char *func, char *prm)
+{
+	void *rc;
+	rc = tm_alloc_inner(size);
+	syslog(LOG_DEBUG, "  ALLOC %s:[%d]:%s -> [%p](%"PRIuPTR") '%s'", file, ln, func, rc, size, prm);
+	return (tm_alloc_t)rc;
+}
+tm_alloc_t _tm_calloc_d(size_t size, int ln, char *file, const char *func, char *prm)
+{
+	void *rc;
+	rc = tm_calloc_inner(size);
+	syslog(LOG_DEBUG, " CALLOC %s:[%d]:%s -> [%p](%"PRIuPTR") '%s'", file, ln, func, rc, size, prm);
+	return (tm_alloc_t)rc;
+}
+tm_alloc_t _tm_realloc_d(tm_alloc_t ptr, size_t size, int ln, char *file, const char *func, char *prm)
+{
+	void *rc;
+	rc = tm_realloc_inner(ptr, size);
+	syslog(LOG_DEBUG, "REALLOC %s:[%d]:%s -> [%p]=>[%p](%"PRIuPTR") '%s'", file, ln, func, ptr, rc, size, prm);
+	return (tm_alloc_t)rc;
+}
+char *_tm_strdup_d(const char *string, int length, int ln, char *file, const char *func, char *prm)
+{
+	char *res;
+	res = tm_strdup_inner(string, length);
+	syslog(LOG_DEBUG, " STRDUP %s:[%d]:%s -> [%p] '%s'", file, ln, func, res, prm);
+	return res;
 }
 
 
