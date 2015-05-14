@@ -2,6 +2,7 @@
 
 #include "tm_alloc.h"
 #include "tm_read_config.h"
+#include "tm_logging.h"
 
 void tm_block_destroy(tm_block *block)
 {
@@ -13,6 +14,7 @@ void tm_block_destroy(tm_block *block)
 
 void tm_block_destructor(void *obj)
 {
+	TM_LOG_TRACE();
 	tm_block_destroy((tm_block *)obj);
 }
 

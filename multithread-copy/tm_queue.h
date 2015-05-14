@@ -16,6 +16,7 @@ typedef struct _tm_queue_ctx {
 	tm_queue_elem_ctx *head;
 	tm_queue_elem_ctx *tail;
 	unsigned long long int count;
+	int finish;
 } tm_queue_ctx;
 
 tm_queue_ctx *tm_queue_create();

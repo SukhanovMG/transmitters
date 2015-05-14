@@ -19,7 +19,7 @@ typedef struct _tm_threads_t {
 } tm_threads_t;
 
 
-static tm_shutdown_flag = 0;
+static int tm_shutdown_flag = 0;
 
 
 static tm_threads_t work_threads;
@@ -29,12 +29,18 @@ static void tm_thread_function(void* thread)
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
 	tm_block *block = NULL;
 	void *copy = NULL;
-	copy = tm_alloc(configuration.block_size);
 
-	block = tm_queue_pop_front(thread_ctx->queue);
-	copy = memcpy(copy, block->block, configuration.block_size);
-	tm_refcount_release((void*)block);
-	tm_free(copy);
+	while(!thread_ctx->shutdown)
+	{
+		block = tm_queue_pop_front(thread_ctx->queue);
+		if (block)
+		{
+			copy = tm_alloc(configuration.block_size);
+			copy = memcpy(copy, block->block, configuration.block_size);
+			tm_refcount_release((void*)block);
+			tm_free(copy);
+		}
+	}
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
@@ -72,6 +78,7 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 
 	pthread_mutex_lock(&thread->queue->mutex);
 	thread->shutdown = 1;
+	thread->queue->finish = 1;
 	pthread_cond_signal(&thread->queue->cond);
 	pthread_mutex_unlock(&thread->queue->mutex);
 
@@ -132,6 +139,8 @@ TMThreadStatus tm_threads_shutdown()
 		work_threads.threads_num--;
 	}
 
+	tm_free(work_threads.threads);
+
 	status = TMThreadStatus_SUCCESS;
 	return status;
 
@@ -150,15 +159,6 @@ TMThreadStatus tm_threads_work()
 		nanosleep(&configuration.sleep_time, NULL);
 	}
 
-
-	/*
-	tm_block *block = tm_block_create();
-	for (int i = 0; i < work_threads.threads_num; i++)
-	{
-		tm_queue_push_back(work_threads.threads[i].queue, block);
-	}
-	tm_refcount_release((void*)block);
-	*/
 	status = TMThreadStatus_SUCCESS;
 	return status;
 }

@@ -26,12 +26,14 @@ tm_queue_ctx *tm_queue_create()
 		return q;
 	}
 
+	q->finish = 0;
+
 	return q;
 }
 
 int tm_queue_push_back(tm_queue_ctx *q, tm_block *block)
 {
-	TM_LOG_TRACE();
+	//TM_LOG_DTRACE();
 	tm_queue_elem_ctx *elem = NULL;
 
 	if (!q)
@@ -63,7 +65,7 @@ int tm_queue_push_back(tm_queue_ctx *q, tm_block *block)
 
 tm_block *tm_queue_pop_front(tm_queue_ctx *q)
 {
-	TM_LOG_TRACE();
+	//TM_LOG_DTRACE();
 	tm_queue_elem_ctx *elem = NULL;
 	tm_block *block = NULL;
 
@@ -72,7 +74,14 @@ tm_block *tm_queue_pop_front(tm_queue_ctx *q)
 
 	pthread_mutex_lock(&q->mutex);
 	while (q->count == 0)
+	{
 		pthread_cond_wait(&q->cond, &q->mutex);
+		if (q->finish)
+		{
+			pthread_mutex_unlock(&q->mutex);
+			return NULL;
+		}
+	}
 
 	elem = q->head;
 	if (q->count == 1)
@@ -102,10 +111,10 @@ int tm_queue_destroy(tm_queue_ctx *q)
 		tm_refcount_release((void *)tm_queue_pop_front(q));
 	}
 
-	tm_free(q);
-
 	pthread_mutex_destroy(&q->mutex);
 	pthread_cond_destroy(&q->cond);
+
+	tm_free(q);
 
 	return 1;
 }
