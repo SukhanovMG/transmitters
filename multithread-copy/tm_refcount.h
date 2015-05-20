@@ -1,7 +1,7 @@
 #ifndef TM_REFCOUNT_H
 #define TM_REFCOUNT_H
 
-#define TM_REFCOUNT_DEBUG 1
+#define TM_REFCOUNT_DEBUG 0
 
 typedef void (*tm_refcount_destructor)(void *);
 

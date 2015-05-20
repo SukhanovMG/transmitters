@@ -10,6 +10,7 @@
 #include "tm_alloc.h"
 #include "tm_thread.c"
 #include "tm_logging.h"
+#include "tm_time.h"
 
 #include "syslog.h"
 
@@ -119,6 +120,10 @@ int main(int argc, char *argv[])
 	tm_threads_work();
 	tm_threads_shutdown();
 
+
+	TM_LOG_TRACE("%lf", tm_time_get_current_time());
+	sleep(1);
+	TM_LOG_TRACE("%lf", tm_time_get_current_time());
 
 
 application_exit: {

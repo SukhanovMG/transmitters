@@ -14,7 +14,7 @@ void tm_block_destroy(tm_block *block)
 
 void tm_block_destructor(void *obj)
 {
-	TM_LOG_TRACE();
+	TM_LOG_TRACE("block %p destroyed");
 	tm_block_destroy((tm_block *)obj);
 }
 

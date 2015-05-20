@@ -6,7 +6,7 @@
 typedef void * tm_alloc_t;
 
 
-#define TM_CHECK_ALLOC_DEBUG 1
+#define TM_CHECK_ALLOC_DEBUG 0
 
 #if TM_CHECK_ALLOC_DEBUG
 #define tm_alloc(size) _tm_alloc_d(size, __LINE__, __FILE__, __FUNCTION__, TM_LOG_STR(size))
