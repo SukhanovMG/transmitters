@@ -42,7 +42,7 @@ static void tm_thread_function(void* thread)
 			copy = memcpy(copy, block->block, configuration.block_size);
 			tm_refcount_release((void*)block);
 			new_time = tm_time_get_current_time();
-			TM_LOG_TRACE("thread %lu bitrate %lf", thread_ctx->thread, new_time);
+			TM_LOG_TRACE("thread %lu bitrate %lf", thread_ctx->thread, tm_time_get_bitrate(new_time, thread_ctx->old_time, configuration.block_size));
 			thread_ctx->old_time = new_time;
 			tm_free(copy);
 		}

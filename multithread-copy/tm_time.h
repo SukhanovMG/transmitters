@@ -43,4 +43,6 @@ tm_time16_t *tm_time_double_to_time16(tm_time16_t *t16, double tm);
 double tm_time_double_to_double1970(double tm);
 void tm_time_double_to_string_with_days(char *str, size_t strsize, double tim);
 
+double tm_time_get_bitrate(double t2, double t1, int block_size);
+
 #endif /* TM_TIME_H_ */

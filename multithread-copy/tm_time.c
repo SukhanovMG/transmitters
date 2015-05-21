@@ -68,6 +68,7 @@ double tm_time_get_current_time(void)
  * Получение текущего времени с точностью до наносекунд
  * @return Текущее время (начало эпохи: 1 января 1900 00:00:00)
  */
+#define HAVE_CLOCKGETTIME 1
 double tm_time_get_current_ntime(void)
 {
 #if HAVE_CLOCKGETTIME
@@ -174,4 +175,9 @@ void tm_time_double_to_string_with_days(char *str, size_t strsize, double tim)
 	int sutki = tm % 86400;
 	snprintf(str, strsize, "%d,%02d:%02d:%02d.%06d", (int)(tm / 86400), sutki / 3600,  (sutki % 3600) / 60, sutki % 60,
 			(int)((tim - (double)tm) * 10000000));
+}
+
+double tm_time_get_bitrate(double t2, double t1, int block_size)
+{
+	return block_size * 8 / ((t2 - t1) == 0? 1e-9 :(t2 - t1));
 }

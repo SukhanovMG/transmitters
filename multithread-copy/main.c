@@ -82,7 +82,7 @@ static int main_args_handle(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
 	int rc = EXIT_SUCCESS;
-	int res, ret;
+	int res;
 
 	memset(main_conf_file, 0, sizeof(main_conf_file));
 
@@ -119,12 +119,6 @@ int main(int argc, char *argv[])
 	tm_threads_init(configuration.work_threads_count);
 	tm_threads_work();
 	tm_threads_shutdown();
-
-
-	TM_LOG_TRACE("%lf", tm_time_get_current_time());
-	sleep(1);
-	TM_LOG_TRACE("%lf", tm_time_get_current_time());
-
 
 application_exit: {
 
