@@ -8,8 +8,6 @@
 #include "tm_alloc.h"
 #include "tm_logging.h"
 
-#define POSIX_C_SOURCE 200809L
-
 read_config_parameters_t configuration;
 static config_t cfg; /*!< Котекст библиотеки чтения файлов конфигурации */
 static int configuration_inited = 0; /*!< флаг инициализированности конфигурации */
@@ -97,7 +95,7 @@ ReadConfigStatus read_config(void)
 		goto read_config_error;
 	}
 
-	if (!config_lookup_int(&cfg, "WorkThreadsCount", &configuration.work_threads_count)) {
+	if (!config_lookup_int(&cfg, "ClientsCount", &configuration.clients_count)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}

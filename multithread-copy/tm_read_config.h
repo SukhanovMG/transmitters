@@ -19,7 +19,7 @@ typedef enum _ReadConfigStatus {
  */
 typedef struct _read_config_parameters_t {
 		char *config_file; /*!< Полный путь с именем файла конфигурации */
-		int work_threads_count; /*!< Количество рабочих потоков */
+		int clients_count; /*!< Количество рабочих потоков */
 		int block_size; /*!< Размер передаваемого блока */
 		int bitrate; /*!< Битрейт информации как бы поступающей на вход */
 		struct timespec sleep_time;
