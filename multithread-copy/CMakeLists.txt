@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.8)
 project(mt_copy)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
-#set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
 #set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
 
 
@@ -44,7 +44,7 @@ add_custom_command(
     DEPENDS ${CMAKE_BINARY_DIR}/libconfig/Makefile
 )
 
-
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config" COPYONLY)
 
 set(SRC main.c)
 set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c)

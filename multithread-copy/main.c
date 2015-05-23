@@ -113,9 +113,10 @@ int main(int argc, char *argv[])
 	}
 
 	TM_LOG_TRACE("ClientsCount = %d\n", configuration.clients_count);
-
-
 	TM_LOG_TRACE("sec = %lu; nano = %lu", configuration.sleep_time.tv_sec, configuration.sleep_time.tv_nsec);
+	TM_LOG_TRACE("bitrate_diff_percent = %d", configuration.bitrate_diff_percent);
+	TM_LOG_TRACE("bitrate_diff = %lf", configuration.bitrate_diff);
+
 	tm_threads_init(configuration.clients_count);
 	tm_threads_work();
 	tm_threads_shutdown();

@@ -23,6 +23,9 @@ typedef struct _read_config_parameters_t {
 		int block_size; /*!< Размер передаваемого блока */
 		int bitrate; /*!< Битрейт информации как бы поступающей на вход */
 		struct timespec sleep_time;
+		int avg_bitrate_calc_time;
+		int bitrate_diff_percent;
+		double bitrate_diff;
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */

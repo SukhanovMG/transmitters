@@ -115,6 +115,18 @@ ReadConfigStatus read_config(void)
 		goto read_config_error;
 	}
 
+	if (!config_lookup_int(&cfg, "AverageBitrateCalculationTime", &configuration.avg_bitrate_calc_time)) {
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
+	if (!config_lookup_int(&cfg, "BitrateDiff", &configuration.bitrate_diff_percent)) {
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
+	configuration.bitrate_diff = (double) configuration.bitrate * configuration.bitrate_diff_percent / 100;
+
 
 	return ReadConfigStatus_SUCCESS;
 
