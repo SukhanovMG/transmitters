@@ -117,9 +117,19 @@ int main(int argc, char *argv[])
 	TM_LOG_TRACE("bitrate_diff_percent = %d", configuration.bitrate_diff_percent);
 	TM_LOG_TRACE("bitrate_diff = %lf", configuration.bitrate_diff);
 
-	tm_threads_init(configuration.clients_count);
-	tm_threads_work();
-	tm_threads_shutdown();
+	if (tm_threads_init(configuration.clients_count) != TMThreadStatus_SUCCESS) {
+		rc = EXIT_FAILURE;
+		goto application_exit;
+	}
+
+	if (tm_threads_work() != TMThreadStatus_SUCCESS) {
+		rc = EXIT_FAILURE;
+	}
+
+	if (tm_threads_shutdown() != TMThreadStatus_SUCCESS) {
+		rc = EXIT_FAILURE;
+		goto application_exit;
+	}
 
 application_exit: {
 

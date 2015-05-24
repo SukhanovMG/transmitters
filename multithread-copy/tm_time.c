@@ -189,28 +189,22 @@ int tm_time_sample_bitrate(tm_time_bitrate *bitrate_ctx)
 {
 	int ret = 0;
 	double cur_time = tm_time_get_current_ntime();
-	double temp_last_time = bitrate_ctx->last_sample;
 
 	if (bitrate_ctx->bitrate_sample_count == -1)
 	{
 		bitrate_ctx->bitrate = 0.0;
 		bitrate_ctx->start_time = cur_time;
-		bitrate_ctx->last_sample = cur_time;
 		bitrate_ctx->bitrate_sample_count = 0;
 	}
 	else
 	{
-		//bitrate_ctx->bitrate += tm_time_get_bitrate(cur_time, bitrate_ctx->last_sample);
-		bitrate_ctx->last_sample = cur_time;
 		bitrate_ctx->bitrate_sample_count++;
 	}
 
 	if (cur_time - bitrate_ctx->start_time >= configuration.avg_bitrate_calc_time)
 	{
 		ret = 1;
-		TM_LOG_TRACE("cnt %d last %lf cur %lf", bitrate_ctx->bitrate_sample_count, bitrate_ctx->start_time, cur_time);
 		if (bitrate_ctx->bitrate_sample_count != 0)
-			//bitrate_ctx->bitrate = (double)bitrate_ctx->bitrate / bitrate_ctx->bitrate_sample_count;
 			bitrate_ctx->bitrate = (double)tm_time_get_bitrate(cur_time, bitrate_ctx->start_time) * bitrate_ctx->bitrate_sample_count;
 		bitrate_ctx->bitrate_sample_count = -1;
 	}

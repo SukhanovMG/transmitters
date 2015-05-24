@@ -30,7 +30,6 @@ typedef struct _tm_time16 {
 typedef struct _tm_time_bitrate {
 	double bitrate;
 	int bitrate_sample_count;
-	double last_sample;
 	double start_time;
 } tm_time_bitrate;
 

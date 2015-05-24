@@ -22,26 +22,26 @@ typedef struct _tm_threads_t {
 
 
 static int tm_shutdown_flag = 0;
+static int tm_low_bitrate_flag = 0;
 static tm_threads_t work_threads;
 
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
 	tm_block *block = NULL;
-	//void *copy = NULL;
-	//double new_time = 0;
 
 	while(!thread_ctx->shutdown)
 	{
 		block = tm_queue_pop_front(thread_ctx->queue);
 		if (block)
 		{
-			//copy = tm_alloc(configuration.block_size);
-			//copy = memcpy(copy, block->block, configuration.block_size);
 			tm_refcount_release((void*)block);
 			if (tm_time_sample_bitrate(&thread_ctx->bitrate_ctx))
-				TM_LOG_TRACE("thread %lu bitrate %lf", thread_ctx->thread, thread_ctx->bitrate_ctx.bitrate);
-			//tm_free(copy);
+			{
+				//TM_LOG_TRACE("thread %lu bitrate %lf", thread_ctx->thread, thread_ctx->bitrate_ctx.bitrate);
+				if (thread_ctx->bitrate_ctx.bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
+					tm_low_bitrate_flag = 1;
+			}
 		}
 	}
 }
@@ -155,7 +155,7 @@ TMThreadStatus tm_threads_work()
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 	tm_block *block = NULL;
-	while(!tm_shutdown_flag)
+	while(!tm_shutdown_flag && !tm_low_bitrate_flag)
 	{
 		//TM_LOG_TRACE("tm_threads_work iteration");
 		block = tm_block_create();
@@ -165,6 +165,9 @@ TMThreadStatus tm_threads_work()
 		nanosleep(&configuration.sleep_time, NULL);
 	}
 
-	status = TMThreadStatus_SUCCESS;
+	if (tm_low_bitrate_flag)
+		TM_LOG_TRACE("Low bitrate.");
+	else
+		status = TMThreadStatus_SUCCESS;
 	return status;
 }
