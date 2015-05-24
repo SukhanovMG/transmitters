@@ -15,6 +15,7 @@
 #include "syslog.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
+static int clients_option_flag = 0;
 
 //Вывод помощи по параметрам командной строки
 static void main_show_help()
@@ -39,18 +40,23 @@ static int main_args_handle(int argc, char *argv[])
 	struct stat buffer;
 	int res = 0;
 	int option_index = -1;
-	const char *short_options = "c:h";
+	const char *short_options = "c:C:h";
 	const struct option long_options[] = {
 			{
-					"config",
-					required_argument,
-					NULL,
-					'c' },
+				"config",
+				required_argument,
+				NULL,
+				'c' },
 			{
-					"help",
-					no_argument,
-					NULL,
-					'h' }
+				"clients",
+				required_argument,
+				NULL,
+				'C' },
+			{
+				"help",
+				no_argument,
+				NULL,
+				'h' }
 	};
 
 	memset(main_conf_file, 0, sizeof(main_conf_file));
@@ -59,6 +65,10 @@ static int main_args_handle(int argc, char *argv[])
 		switch(res){
 			case 'c':
 				tm_strlcpy(main_conf_file, optarg, sizeof(main_conf_file));
+				break;
+			case 'C':
+				clients_option_flag = 1;
+				tm_read_config_clients_count = atoi(optarg);
 				break;
 			case 'h':
 			case '?':
@@ -73,6 +83,15 @@ static int main_args_handle(int argc, char *argv[])
 	if (stat(main_conf_file, &buffer)) {
 		fprintf(stderr, "%s[%d]: configuration file (%s) failed\n", __FILE__, __LINE__, main_conf_file);
 		return -1;
+	}
+
+	if (clients_option_flag)
+	{
+		if (tm_read_config_clients_count <= 0)
+		{
+			fprintf(stderr, "%s[%d]: bad clients count (%d)\n", __FILE__, __LINE__, tm_read_config_clients_count);
+			return -1;
+		}
 	}
 
 	return 0;
@@ -113,9 +132,9 @@ int main(int argc, char *argv[])
 	}
 
 	TM_LOG_TRACE("ClientsCount = %d\n", configuration.clients_count);
-	TM_LOG_TRACE("sec = %lu; nano = %lu", configuration.sleep_time.tv_sec, configuration.sleep_time.tv_nsec);
-	TM_LOG_TRACE("bitrate_diff_percent = %d", configuration.bitrate_diff_percent);
-	TM_LOG_TRACE("bitrate_diff = %lf", configuration.bitrate_diff);
+	TM_LOG_TRACE("bitrate = %d kbps", configuration.bitrate);
+	TM_LOG_TRACE("bitrate_diff_percent = %d%%", configuration.bitrate_diff_percent);
+	TM_LOG_TRACE("bitrate_diff = %lf kbps", configuration.bitrate_diff);
 
 	if (tm_threads_init(configuration.clients_count) != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;

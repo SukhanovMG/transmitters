@@ -8,6 +8,7 @@
 #include "tm_alloc.h"
 #include "tm_logging.h"
 
+int tm_read_config_clients_count = -1;
 read_config_parameters_t configuration;
 static config_t cfg; /*!< Котекст библиотеки чтения файлов конфигурации */
 static int configuration_inited = 0; /*!< флаг инициализированности конфигурации */
@@ -95,10 +96,15 @@ ReadConfigStatus read_config(void)
 		goto read_config_error;
 	}
 
-	if (!config_lookup_int(&cfg, "ClientsCount", &configuration.clients_count)) {
-		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
-		goto read_config_error;
+	if (tm_read_config_clients_count <= 0)
+	{
+		if (!config_lookup_int(&cfg, "ClientsCount", &configuration.clients_count)) {
+			TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+			goto read_config_error;
+		}
 	}
+	else
+		configuration.clients_count = tm_read_config_clients_count;
 
 	if (!config_lookup_int(&cfg, "BlockSize", &configuration.block_size)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
