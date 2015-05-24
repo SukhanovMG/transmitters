@@ -22,10 +22,11 @@ typedef struct _read_config_parameters_t {
 		int clients_count; /*!< Количество рабочих потоков */
 		int block_size; /*!< Размер передаваемого блока */
 		int bitrate; /*!< Битрейт информации как бы поступающей на вход */
-		struct timespec sleep_time;
-		int avg_bitrate_calc_time;
-		int bitrate_diff_percent;
-		double bitrate_diff;
+		struct timespec sleep_time; /*!< Период между распределением пакетов по потокам */
+		int avg_bitrate_calc_time; /*!< Время (в секундах), в течении которого накапливается информация о битрейте перед его рассчётом */
+		int bitrate_diff_percent; /*!< Разница в процентах от исходного битрейта, которая может быть у клиента */
+		double bitrate_diff; /*!< Разница в единицах битрейта от исходного битрейта, которая может быть у клиента */
+		int test_time; /*!< Время в секундах, в течении которого проводится тест, т.е. работает программа. Если битрейт это время был достаточен, то программа успешно завершается */
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */

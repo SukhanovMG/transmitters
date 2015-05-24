@@ -18,6 +18,7 @@ typedef struct _tm_thread_t {
 typedef struct _tm_threads_t {
 	tm_thread_t *threads;
 	int threads_num;
+	double start_time;
 } tm_threads_t;
 
 
@@ -124,6 +125,8 @@ TMThreadStatus tm_threads_init(int count)
 		work_threads.threads_num++; // реальное число созданных потоков
 	}
 
+	work_threads.start_time = 0;
+
 	signal(SIGINT, tm_signal_handler);
 	signal(SIGTERM, tm_signal_handler);
 	signal(SIGQUIT, tm_signal_handler);
@@ -155,9 +158,16 @@ TMThreadStatus tm_threads_work()
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 	tm_block *block = NULL;
+	double current_time = 0;
+
+	work_threads.start_time = tm_time_get_current_ntime();
+
 	while(!tm_shutdown_flag && !tm_low_bitrate_flag)
 	{
 		//TM_LOG_TRACE("tm_threads_work iteration");
+		current_time = tm_time_get_current_ntime();
+		if (current_time - work_threads.start_time >= (double) configuration.test_time)
+			break;
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
 			tm_queue_push_back(work_threads.threads[i].queue, block);

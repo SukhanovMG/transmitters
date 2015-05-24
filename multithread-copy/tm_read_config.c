@@ -127,6 +127,11 @@ ReadConfigStatus read_config(void)
 
 	configuration.bitrate_diff = (double) configuration.bitrate * configuration.bitrate_diff_percent / 100;
 
+	if (!config_lookup_int(&cfg, "TestTime", &configuration.test_time)) {
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
 
 	return ReadConfigStatus_SUCCESS;
 

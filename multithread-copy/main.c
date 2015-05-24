@@ -124,6 +124,11 @@ int main(int argc, char *argv[])
 
 	if (tm_threads_work() != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
+		TM_LOG_TRACE("===Test failed.===");
+	}
+	else
+	{
+		TM_LOG_TRACE("===Test completed successfully.===");
 	}
 
 	if (tm_threads_shutdown() != TMThreadStatus_SUCCESS) {
