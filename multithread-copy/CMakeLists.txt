@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.8)
 
-project(mt_copy)
+project(mt)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
@@ -49,12 +49,21 @@ configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 
 set(SRC main.c)
 set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c)
-add_library(libs STATIC ${LIB})
 
-add_dependencies(libs libconfig)
+add_library(libs_pointer STATIC ${LIB})
+add_dependencies(libs_pointer libconfig)
 
-add_executable(${CMAKE_PROJECT_NAME} ${SRC})
-target_link_libraries(${CMAKE_PROJECT_NAME} libs
+add_library(libs_copy STATIC ${LIB})
+add_dependencies(libs_copy libconfig)
+set_property(TARGET libs_copy PROPERTY COMPILE_DEFINITIONS TM_BLOCK_COPY_ON_TRANSFER)
+
+add_executable("${CMAKE_PROJECT_NAME}_pointer" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_pointer" libs_pointer
+                                            ${PTHREAD_LIBRARIES}
+                                            ${CMAKE_BINARY_DIR}/libconfig/lib/.libs/libconfig.a
+                                            )
+add_executable("${CMAKE_PROJECT_NAME}_copy" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_copy" libs_copy
                                             ${PTHREAD_LIBRARIES}
                                             ${CMAKE_BINARY_DIR}/libconfig/lib/.libs/libconfig.a
                                             )

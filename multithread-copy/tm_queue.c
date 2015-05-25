@@ -43,7 +43,7 @@ int tm_queue_push_back(tm_queue_ctx *q, tm_block *block)
 	if (!elem)
 		return 0;
 
-	elem->block = (tm_block*)tm_refcount_retain((void*)block);
+	elem->block = tm_block_transfer_block(block);
 
 	pthread_mutex_lock(&q->mutex);
 	if (q->count == 0)

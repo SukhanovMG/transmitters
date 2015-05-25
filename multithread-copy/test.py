@@ -1,12 +1,27 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import subprocess
+import sys
+
+test_process = ""
+
+if len(sys.argv) < 2:
+	print "Error: Not enough arguments"
+	sys.exit(1);
+
+if sys.argv[1] == "copy":
+	test_process = "./mt_copy"
+elif sys.argv[1] == "pointer":
+	test_process = "./mt_pointer"
+else:
+	print "Error: test mode (" + sys.argv[1] + ") is not supported"
 
 # Функция для запуска очередного теста
 # clients_count - количество клиентов в тесте
 # Возвращает True, если тест пройден, False, если не пройден
 def run_test(clients_count):
-	test_res = subprocess.call(["./mt_copy", "-c", ".config", "-C", str(clients_count)])
+	print test_process + " " + "-c" + " " + ".config" + " " + "-C" + " " + str(clients_count)
+	test_res = subprocess.call([test_process, "-c", ".config", "-C", str(clients_count)])
 	if test_res == 0:
 		print "===clients_count = " + str(clients_count) + " passed==="
 	else:

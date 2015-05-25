@@ -36,10 +36,9 @@ static void tm_thread_function(void* thread)
 		block = tm_queue_pop_front(thread_ctx->queue);
 		if (block)
 		{
-			tm_refcount_release((void*)block);
+			tm_block_dispose_block(block);
 			if (tm_time_sample_bitrate(&thread_ctx->bitrate_ctx))
 			{
-				//TM_LOG_TRACE("thread %lu bitrate %lf", thread_ctx->thread, thread_ctx->bitrate_ctx.bitrate);
 				if (thread_ctx->bitrate_ctx.bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
 					tm_low_bitrate_flag = 1;
 			}
@@ -160,6 +159,10 @@ TMThreadStatus tm_threads_work()
 	tm_block *block = NULL;
 	double current_time = 0;
 
+#ifdef TM_BLOCK_COPY_ON_TRANSFER
+	TM_LOG_TRACE("TM_BLOCK_COPY_ON_TRANSFER");
+#endif
+
 	work_threads.start_time = tm_time_get_current_ntime();
 
 	while(!tm_shutdown_flag && !tm_low_bitrate_flag)
@@ -171,7 +174,7 @@ TMThreadStatus tm_threads_work()
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
 			tm_queue_push_back(work_threads.threads[i].queue, block);
-		tm_refcount_release((void*)block);
+		tm_block_dispose_block(block);
 		nanosleep(&configuration.sleep_time, NULL);
 	}
 
