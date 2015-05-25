@@ -15,6 +15,7 @@ elif sys.argv[1] == "pointer":
 	test_process = "./mt_pointer"
 else:
 	print "Error: test mode (" + sys.argv[1] + ") is not supported"
+	sys.exit(1);
 
 # Функция для запуска очередного теста
 # clients_count - количество клиентов в тесте
