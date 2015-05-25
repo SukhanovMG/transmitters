@@ -4,13 +4,30 @@
 #include "tm_read_config.h"
 #include "tm_logging.h"
 
+#define TM_BLOCK_DEBUG 0
+
+#if !TM_BLOCK_DEBUG
+#define TM_LOG_DTRACE(...)
+#undef 	TM_LOG_STRACE
+#define TM_LOG_STRACE()
+#undef 	TM_LOG_TSTRACE
+#define TM_LOG_TSTRACE(id)
+#undef 	TM_LOG_RAW
+#define TM_LOG_RAW(a,b)
+#else
+#define TM_LOG_DTRACE TM_LOG_TRACE
+#endif
+
+
 void tm_block_destroy(tm_block *block)
 {
 	if(!block)
 		return;
-	tm_free(block->block);
+	if (block->block)
+		tm_free(block->block);
 	tm_free(block);
-	//TM_LOG_TRACE("block %p destroyed", block);
+
+	TM_LOG_DTRACE("Block %p destroyed", block);
 }
 
 void tm_block_destructor(void *obj)
@@ -27,7 +44,7 @@ tm_block *tm_block_create()
 		return NULL;
 
 	tm_refcount_init((tm_refcount*)block, tm_block_destructor);
-	//TM_LOG_TRACE("block %p created", block);
+	TM_LOG_DTRACE("Block %p created", block);
 	return block;
 }
 
@@ -44,7 +61,7 @@ tm_block *tm_block_copy(tm_block *block)
 
 	memcpy(copy->block, block->block, configuration.block_size);
 
-	//TM_LOG_TRACE("block %p copyed to %p", block, copy);
+	TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
 
 	return copy;
 }
