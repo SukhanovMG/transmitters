@@ -138,6 +138,11 @@ ReadConfigStatus read_config(void)
 		goto read_config_error;
 	}
 
+	if (!config_lookup_bool(&cfg, "UseMemPool", &configuration.mempool_use)) {
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
 
 	return ReadConfigStatus_SUCCESS;
 

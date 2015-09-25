@@ -11,6 +11,7 @@
 #include "tm_thread.c"
 #include "tm_logging.h"
 #include "tm_time.h"
+#include "tm_block.h"
 
 #include "syslog.h"
 
@@ -136,10 +137,17 @@ int main(int argc, char *argv[])
 	TM_LOG_TRACE("bitrate_diff_percent = %d%%", configuration.bitrate_diff_percent);
 	TM_LOG_TRACE("bitrate_diff = %lf kbps", configuration.bitrate_diff);
 
+	if (!tm_block_init()) {
+		rc = EXIT_FAILURE;
+		goto application_exit;
+	}
+
 	if (tm_threads_init(configuration.clients_count) != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
+
+	TM_LOG_TRACE("rc = %d", rc);
 
 	if (tm_threads_work() != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
@@ -150,20 +158,24 @@ int main(int argc, char *argv[])
 		TM_LOG_TRACE("===Test completed successfully.===");
 	}
 
-	if (tm_threads_shutdown() != TMThreadStatus_SUCCESS) {
-		rc = EXIT_FAILURE;
-		goto application_exit;
-	}
+	TM_LOG_TRACE("rc = %d", rc);
 
 application_exit: {
 
 	TM_LOG_TRACE("Application stoping\n");
+
+	tm_threads_shutdown();
+
+	tm_block_fin();
+
 	/* удаление ресурсов конфигурации */
 	read_config_destroy();
 	TM_LOG_TRACE("Application stoped\n");
 
 	/* завершение логирования */
 	tm_log_destroy();
+
+	printf("rc = %d", rc);
 
 	return rc;
 }

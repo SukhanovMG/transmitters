@@ -3,8 +3,9 @@
 #include "tm_alloc.h"
 #include "tm_read_config.h"
 #include "tm_logging.h"
+#include "tm_mempool.h"
 
-#define TM_BLOCK_DEBUG 0
+#define TM_BLOCK_DEBUG 1
 
 #if !TM_BLOCK_DEBUG
 #define TM_LOG_DTRACE(...)
@@ -19,15 +20,39 @@
 #endif
 
 
+static tm_mempool* mempool = NULL;
+
+int tm_block_init()
+{
+	int result = 0;
+
+	if (!mempool) {
+		mempool = tm_mempool_new(configuration.block_size, 4096);
+		if (mempool)
+			result = 1;
+	}
+	return result;
+}
+void tm_block_fin()
+{
+	if (mempool) {
+		tm_mempool_delete(mempool);
+	}
+}
+
 void tm_block_destroy(tm_block *block)
 {
 	if(!block)
 		return;
-	if (block->block)
-		tm_free(block->block);
+	if (block->block) {
+		if (configuration.mempool_use && mempool)
+			tm_mempool_return(mempool, block->block);
+		else
+			tm_free(block->block);
+	}
 	tm_free(block);
 
-	TM_LOG_DTRACE("Block %p destroyed", block);
+	//TM_LOG_DTRACE("Block %p destroyed", block);
 }
 
 void tm_block_destructor(void *obj)
@@ -39,12 +64,17 @@ tm_block *tm_block_create()
 {
 	tm_block *block = NULL;
 	block = tm_alloc(sizeof(tm_block));
-	block->block = tm_calloc(configuration.block_size);
-	if (!block->block)
+	if (configuration.mempool_use && mempool)
+		block->block = tm_mempool_get(mempool);
+	else
+		block->block = tm_calloc(configuration.block_size);
+	if (!block->block) {
+		TM_LOG_DTRACE("Failed to create block");
 		return NULL;
+	}
 
 	tm_refcount_init((tm_refcount*)block, tm_block_destructor);
-	TM_LOG_DTRACE("Block %p created", block);
+	//TM_LOG_DTRACE("Block %p created", block);
 	return block;
 }
 
@@ -61,7 +91,7 @@ tm_block *tm_block_copy(tm_block *block)
 
 	memcpy(copy->block, block->block, configuration.block_size);
 
-	TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
+	//TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
 
 	return copy;
 }

@@ -27,6 +27,7 @@ typedef struct _read_config_parameters_t {
 		int bitrate_diff_percent; /*!< Разница в процентах от исходного битрейта, которая может быть у клиента */
 		double bitrate_diff; /*!< Разница в единицах битрейта от исходного битрейта, которая может быть у клиента */
 		int test_time; /*!< Время в секундах, в течении которого проводится тест, т.е. работает программа. Если битрейт это время был достаточен, то программа успешно завершается */
+		int mempool_use; /* Флаг использования пула */
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */

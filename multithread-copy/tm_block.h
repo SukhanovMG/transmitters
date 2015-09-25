@@ -8,6 +8,9 @@ typedef struct _tm_block {
 	void *block;
 } tm_block;
 
+int tm_block_init();
+void tm_block_fin();
+
 void tm_block_destroy(tm_block *block);
 void tm_block_destructor(void *obj);
 tm_block *tm_block_create();

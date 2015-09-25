@@ -48,7 +48,7 @@ configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config" COPYONLY)
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 
 set(SRC main.c)
-set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c)
+set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c tm_mempool.c)
 
 add_library(libs_pointer STATIC ${LIB})
 add_dependencies(libs_pointer libconfig)
