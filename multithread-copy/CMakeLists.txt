@@ -4,7 +4,6 @@ project(mt)
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
-#set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
 
 
 # Build type.
@@ -13,17 +12,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(Pthread REQUIRED)
+find_package(JeMalloc REQUIRED)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99")
-if(CMAKE_BUILD_TYPE MATCHES Release)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -s")
-    set(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -O3 -s")
-else()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -pg")
-    set(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -O0 -g -pg")
-endif()
 
 include_directories("${CMAKE_BINARY_DIR}/libconfig/lib")
+include_directories("${JEMALLOC_INCLUDE_DIR}")
 
 message(STATUS "~~~~~~~~~~~~~~~~~~ BUILD TYPE '${CMAKE_BUILD_TYPE}' ~~~~~~~~~~~~~~~~~~")
 
@@ -44,26 +38,34 @@ add_custom_command(
     DEPENDS ${CMAKE_BINARY_DIR}/libconfig/Makefile
 )
 
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config" COPYONLY)
+set(FOR_CONFIN_COPY_BLOCK_ON_TRANSFER "true")
+set(FOR_CONFIG_USE_MEMPOOL "true")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool" @ONLY)
+set(FOR_CONFIG_USE_MEMPOOL "false")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_no_mempool" @ONLY)
+set(FOR_CONFIN_COPY_BLOCK_ON_TRANSFER "false")
+set(FOR_CONFIG_USE_MEMPOOL "true")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_mempool" @ONLY)
+set(FOR_CONFIG_USE_MEMPOOL "false")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_no_mempool" @ONLY)
+
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 
 set(SRC main.c)
 set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c tm_mempool.c)
 
-add_library(libs_pointer STATIC ${LIB})
-add_dependencies(libs_pointer libconfig)
+add_library(libs STATIC ${LIB})
+add_dependencies(libs libconfig)
 
-add_library(libs_copy STATIC ${LIB})
-add_dependencies(libs_copy libconfig)
-set_property(TARGET libs_copy PROPERTY COMPILE_DEFINITIONS TM_BLOCK_COPY_ON_TRANSFER)
-
-add_executable("${CMAKE_PROJECT_NAME}_pointer" ${SRC})
-target_link_libraries("${CMAKE_PROJECT_NAME}_pointer" libs_pointer
+add_executable("${CMAKE_PROJECT_NAME}_malloc" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_malloc" libs
                                             ${PTHREAD_LIBRARIES}
                                             ${CMAKE_BINARY_DIR}/libconfig/lib/.libs/libconfig.a
                                             )
-add_executable("${CMAKE_PROJECT_NAME}_copy" ${SRC})
-target_link_libraries("${CMAKE_PROJECT_NAME}_copy" libs_copy
+
+add_executable("${CMAKE_PROJECT_NAME}_jemalloc" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_jemalloc" libs
+                                            ${JEMALLOC_LIBRARIES}
                                             ${PTHREAD_LIBRARIES}
                                             ${CMAKE_BINARY_DIR}/libconfig/lib/.libs/libconfig.a
                                             )

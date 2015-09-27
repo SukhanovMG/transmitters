@@ -159,10 +159,6 @@ TMThreadStatus tm_threads_work()
 	tm_block *block = NULL;
 	double current_time = 0;
 
-#ifdef TM_BLOCK_COPY_ON_TRANSFER
-	TM_LOG_TRACE("TM_BLOCK_COPY_ON_TRANSFER");
-#endif
-
 	work_threads.start_time = tm_time_get_current_ntime();
 
 	while(!tm_shutdown_flag && !tm_low_bitrate_flag)

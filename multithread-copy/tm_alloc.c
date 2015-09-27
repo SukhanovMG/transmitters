@@ -7,7 +7,11 @@
 #include "tm_alloc.h"
 #include "tm_compat.h"
 #include "tm_logging.h"
+#include "tm_read_config.h"
 
+//#define JEMALLOC_NO_RENAME
+//#define JEMALLOC_NO_DEMANGLE
+#include <jemalloc/jemalloc.h>
 
 /**
  * Выделение памяти

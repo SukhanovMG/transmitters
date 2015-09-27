@@ -5,7 +5,7 @@
 #include "tm_logging.h"
 #include "tm_mempool.h"
 
-#define TM_BLOCK_DEBUG 1
+#define TM_BLOCK_DEBUG 0
 
 #if !TM_BLOCK_DEBUG
 #define TM_LOG_DTRACE(...)
@@ -45,14 +45,14 @@ void tm_block_destroy(tm_block *block)
 	if(!block)
 		return;
 	if (block->block) {
-		if (configuration.mempool_use && mempool)
+		if (configuration.use_mempool && mempool)
 			tm_mempool_return(mempool, block->block);
 		else
 			tm_free(block->block);
 	}
 	tm_free(block);
 
-	//TM_LOG_DTRACE("Block %p destroyed", block);
+	TM_LOG_DTRACE("Block %p destroyed", block);
 }
 
 void tm_block_destructor(void *obj)
@@ -64,7 +64,7 @@ tm_block *tm_block_create()
 {
 	tm_block *block = NULL;
 	block = tm_alloc(sizeof(tm_block));
-	if (configuration.mempool_use && mempool)
+	if (configuration.use_mempool && mempool)
 		block->block = tm_mempool_get(mempool);
 	else
 		block->block = tm_calloc(configuration.block_size);
@@ -74,7 +74,7 @@ tm_block *tm_block_create()
 	}
 
 	tm_refcount_init((tm_refcount*)block, tm_block_destructor);
-	//TM_LOG_DTRACE("Block %p created", block);
+	TM_LOG_DTRACE("Block %p created", block);
 	return block;
 }
 
@@ -91,7 +91,7 @@ tm_block *tm_block_copy(tm_block *block)
 
 	memcpy(copy->block, block->block, configuration.block_size);
 
-	//TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
+	TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
 
 	return copy;
 }
@@ -101,11 +101,10 @@ tm_block *tm_block_transfer_block(tm_block *block)
 	if (!block)
 		return NULL;
 
-#ifdef TM_BLOCK_COPY_ON_TRANSFER
-	return tm_block_copy(block);
-#else
-	return (tm_block*)tm_refcount_retain((void*)block);
-#endif
+	if (configuration.copy_block_on_transfer)
+		return tm_block_copy(block);
+	else
+		return (tm_block*)tm_refcount_retain((void*)block);
 }
 
 void tm_block_dispose_block(tm_block *block)
@@ -113,9 +112,8 @@ void tm_block_dispose_block(tm_block *block)
 	if (!block)
 		return;
 
-#ifdef TM_BLOCK_COPY_ON_TRANSFER
-	tm_block_destroy(block);
-#else
-	tm_refcount_release((void*)block);
-#endif
+	if (configuration.copy_block_on_transfer)
+		tm_block_destroy(block);
+	else
+		tm_refcount_release((void*)block);
 }

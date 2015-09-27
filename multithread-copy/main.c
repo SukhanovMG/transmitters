@@ -147,8 +147,6 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
-	TM_LOG_TRACE("rc = %d", rc);
-
 	if (tm_threads_work() != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		TM_LOG_TRACE("===Test failed.===");
@@ -157,8 +155,6 @@ int main(int argc, char *argv[])
 	{
 		TM_LOG_TRACE("===Test completed successfully.===");
 	}
-
-	TM_LOG_TRACE("rc = %d", rc);
 
 application_exit: {
 
@@ -174,8 +170,6 @@ application_exit: {
 
 	/* завершение логирования */
 	tm_log_destroy();
-
-	printf("rc = %d", rc);
 
 	return rc;
 }
