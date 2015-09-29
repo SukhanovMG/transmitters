@@ -11,7 +11,7 @@
 
 //#define JEMALLOC_NO_RENAME
 //#define JEMALLOC_NO_DEMANGLE
-#include <jemalloc/jemalloc.h>
+//#include <jemalloc/jemalloc.h>
 
 /**
  * Выделение памяти
