@@ -132,11 +132,6 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
-	TM_LOG_TRACE("ClientsCount = %d\n", configuration.clients_count);
-	TM_LOG_TRACE("bitrate = %d kbps", configuration.bitrate);
-	TM_LOG_TRACE("bitrate_diff_percent = %d%%", configuration.bitrate_diff_percent);
-	TM_LOG_TRACE("bitrate_diff = %lf kbps", configuration.bitrate_diff);
-
 	if (!tm_block_init()) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
@@ -158,15 +153,12 @@ int main(int argc, char *argv[])
 
 application_exit: {
 
-	TM_LOG_TRACE("Application stoping\n");
-
 	tm_threads_shutdown();
 
 	tm_block_fin();
 
 	/* удаление ресурсов конфигурации */
 	read_config_destroy();
-	TM_LOG_TRACE("Application stoped\n");
 
 	/* завершение логирования */
 	tm_log_destroy();

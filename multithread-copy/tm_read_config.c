@@ -149,9 +149,12 @@ ReadConfigStatus read_config(void)
 	}
 
 	if (!config_lookup_bool(&cfg, "UseJeMalloc", &configuration.use_jemalloc)) {
-                TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
-                goto read_config_error;
-        }
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
+	TM_LOG_TRACE("%d clients. %d kb/s; max diff %lf kb/s (%d%%)", configuration.clients_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
+	TM_LOG_TRACE("copy: %d; mempool: %d; jemalloc: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc);
 
 	return ReadConfigStatus_SUCCESS;
 
