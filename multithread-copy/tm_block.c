@@ -23,16 +23,21 @@
 
 
 static tm_mempool* mempool = NULL;
+static tm_allocator allocator;
 
 int tm_block_init()
 {
 	int result = 0;
 
-	if (!mempool) {
+	if (configuration.use_mempool && !mempool) {
 		mempool = tm_mempool_new(configuration.block_size, 4096);
 		if (mempool)
 			result = 1;
 	}
+
+	allocator.f_alloc = (tm_alloc_function) malloc;
+	allocator.f_free = (tm_free_function) free;
+
 	return result;
 }
 void tm_block_fin()
@@ -49,15 +54,22 @@ void tm_block_destroy(tm_block *block)
 	if (block->block) {
 		if (configuration.use_mempool && mempool)
 			tm_mempool_return(mempool, block->block);
+		/*
 		else if (configuration.use_jemalloc)
 			je_free(block->block);
 		else
 			tm_free(block->block);
+		*/
+		else
+			tm_free_custom(block->block, &allocator);
 	}
+	/*
 	if (configuration.use_jemalloc)
 		je_free(block);
 	else
 		tm_free(block);
+	*/
+	tm_free_custom(block, &allocator);
 
 	TM_LOG_DTRACE("Block %p destroyed", block);
 }
@@ -70,19 +82,27 @@ void tm_block_destructor(void *obj)
 tm_block *tm_block_create()
 {
 	tm_block *block = NULL;
+	/*
 	if (configuration.use_jemalloc)
 		block = je_malloc(sizeof(tm_block));
 	else
 		block = tm_alloc(sizeof(tm_block));
+	*/
+	block = tm_alloc_custom(sizeof(tm_block), &allocator);
 
 	if (configuration.use_mempool && mempool) {
 		block->block = tm_mempool_get(mempool);
 	}
+	/*
 	else if (configuration.use_jemalloc) {
 		block->block = je_calloc(1, configuration.block_size);
 	}
 	else {
 		block->block = tm_calloc(configuration.block_size);
+	}
+	*/
+	else {
+		block->block = tm_calloc_custom(configuration.block_size, &allocator);
 	}
 
 	if (!block->block) {

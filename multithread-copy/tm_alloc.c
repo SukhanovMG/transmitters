@@ -9,18 +9,23 @@
 #include "tm_logging.h"
 #include "tm_read_config.h"
 
-//#define JEMALLOC_NO_RENAME
-//#define JEMALLOC_NO_DEMANGLE
-//#include <jemalloc/jemalloc.h>
 
 /**
  * Выделение памяти
  * @param size Запрашиваемый размер памяти
  * @return Указатель на выделенную память, NULL - при ошибке (освобождать при помощи @ref tm_free())
  */
-static tm_alloc_t tm_alloc_inner(size_t size)
+static tm_alloc_t tm_alloc_inner(size_t size, tm_allocator *allocator)
 {
-	return malloc(size);
+	void *ptr = NULL;
+
+	if (allocator) {
+		ptr = allocator->f_alloc(size);
+	} else {
+		ptr = malloc(size);
+	}
+
+	return ptr;
 }
 
 /**
@@ -28,24 +33,29 @@ static tm_alloc_t tm_alloc_inner(size_t size)
  * @param size Запрашиваемый размер памяти
  * @return Указатель на выделенную память, NULL - при ошибке (освобождать при помощи @ref tm_free())
  */
-static tm_alloc_t tm_calloc_inner(size_t size)
+static tm_alloc_t tm_calloc_inner(size_t size, tm_allocator *allocator)
 {
-	void *rc;
-	if ((rc = (void*)tm_alloc_inner(size))) {
-		memset(rc, 0, size);
+	void *ptr = NULL;
+	ptr = tm_alloc_inner(size, allocator);
+	if (ptr) {
+		memset(ptr, 0, size);
 	}
-	return (tm_alloc_t)rc;
+	return ptr;
 }
 
 /**
  * Освобождение выделенной памяти
  * @param ptr Указатель на выделенную память
  */
-static void tm_free_inner(tm_alloc_t ptr)
+static void tm_free_inner(tm_alloc_t ptr, tm_allocator *allocator)
 {
-	if (!ptr)
-		return;
-	free(ptr);
+	if (ptr) {
+		if (allocator) {
+			allocator->f_free(ptr);
+		} else {
+			free(ptr);
+		}
+	}
 }
 
 /**
@@ -71,7 +81,7 @@ static char *tm_strdup_inner(const char *string, int length)
 	int len = length < 0 ? tm_strlen(string) : length;
 
 	if (len && string) {
-		str = (char*)tm_calloc_inner(len + 1);
+		str = (char*)tm_calloc_inner(len + 1, NULL);
 		if (str)
 			memcpy(str, string, len);
 	}
@@ -83,19 +93,19 @@ static char *tm_strdup_inner(const char *string, int length)
 void _tm_free_d(tm_alloc_t ptr, int ln, char *file, const char *func, char *prm)
 {
 	syslog(LOG_DEBUG, "   FREE %s:[%d]:%s -> [%p] '%s'", file, ln, func, ptr, prm);
-	tm_free_inner(ptr);
+	tm_free_inner(ptr, NULL);
 }
 tm_alloc_t _tm_alloc_d(size_t size, int ln, char *file, const char *func, char *prm)
 {
 	void *rc;
-	rc = tm_alloc_inner(size);
+	rc = tm_alloc_inner(size, NULL);
 	syslog(LOG_DEBUG, "  ALLOC %s:[%d]:%s -> [%p](%"PRIuPTR") '%s'", file, ln, func, rc, size, prm);
 	return (tm_alloc_t)rc;
 }
 tm_alloc_t _tm_calloc_d(size_t size, int ln, char *file, const char *func, char *prm)
 {
 	void *rc;
-	rc = tm_calloc_inner(size);
+	rc = tm_calloc_inner(size, NULL);
 	syslog(LOG_DEBUG, " CALLOC %s:[%d]:%s -> [%p](%"PRIuPTR") '%s'", file, ln, func, rc, size, prm);
 	return (tm_alloc_t)rc;
 }
@@ -117,12 +127,22 @@ char *_tm_strdup_d(const char *string, int length, int ln, char *file, const cha
 
 tm_alloc_t _tm_alloc(size_t size)
 {
-	return tm_alloc_inner(size);
+	return tm_alloc_inner(size, NULL);
+}
+
+tm_alloc_t _tm_alloc_custom(size_t size, tm_allocator *allocator)
+{
+	return tm_alloc_inner(size, allocator);
 }
 
 tm_alloc_t _tm_calloc(size_t size)
 {
-	return tm_calloc_inner(size);
+	return tm_calloc_inner(size, NULL);
+}
+
+tm_alloc_t _tm_calloc_custom(size_t size, tm_allocator *allocator)
+{
+	return tm_calloc_inner(size, allocator);
 }
 
 tm_alloc_t _tm_realloc(tm_alloc_t memptr, size_t new_size)
@@ -132,7 +152,12 @@ tm_alloc_t _tm_realloc(tm_alloc_t memptr, size_t new_size)
 
 void _tm_free(tm_alloc_t ptr)
 {
-	tm_free_inner(ptr);
+	tm_free_inner(ptr, NULL);
+}
+
+void _tm_free_custom(tm_alloc_t ptr, tm_allocator *allocator)
+{
+	tm_free_inner(ptr, allocator);
 }
 
 char *_tm_strdup(const char *string, int length)
