@@ -10,10 +10,7 @@
 #include "tm_alloc.h"
 #include "tm_thread.c"
 #include "tm_logging.h"
-#include "tm_time.h"
 #include "tm_block.h"
-
-#include "syslog.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 static int clients_option_flag = 0;
@@ -24,8 +21,9 @@ static void main_show_help()
 	printf("Usage: mt_copy [parameters]...\n");
 	printf("\n");
 	printf("Arguments:\n");
-	printf("  -c, --config=PATH    use specific configuration file\n");
-	printf("  -h, --help           show this help and exit\n");
+	printf("  -c PATH, --config=PATH     use specific configuration file\n");
+	printf("  -C COUNT, --clients=COUNT  override clients count in configuration file\n");
+	printf("  -h, --help                 show this help and exit\n");
 }
 
 /*
@@ -115,8 +113,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	/* инициализация лога, инициализируется при демонизации,
-	 * здесь нужно, если запускаемся из консоли */
+	/* инициализация лога */
 	if(tm_log_init("tm") != TMLogStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
@@ -132,16 +129,19 @@ int main(int argc, char *argv[])
 		goto application_exit;
 	}
 
+	/* Инициализация модуля работы с блоками */
 	if (!tm_block_init()) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
 
+	/* Инициализация рабочих потоков */
 	if (tm_threads_init(configuration.clients_count) != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
 
+	/* Запуск рабочих потоков */
 	if (tm_threads_work() != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		TM_LOG_TRACE("===Test failed.===");
