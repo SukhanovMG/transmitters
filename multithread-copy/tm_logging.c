@@ -28,7 +28,7 @@
  */
 TMLogStatus tm_log_init(const char *prefix)
 {
-	int logopt = LOG_NDELAY | LOG_NDELAY | LOG_PERROR | LOG_PID;
+	int logopt = LOG_NDELAY | LOG_PERROR | LOG_PID;
 	int facility = LOG_DAEMON;
 	openlog(prefix, logopt, facility);
 	return TMLogStatus_SUCCESS;
