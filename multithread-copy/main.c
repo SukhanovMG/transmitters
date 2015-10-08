@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 
 	/* инициализация лога, инициализируется при демонизации,
 	 * здесь нужно, если запускаемся из консоли */
-	if(tm_log_init("transmitter") != TMLogStatus_SUCCESS) {
+	if(tm_log_init("tm") != TMLogStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
