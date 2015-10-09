@@ -124,6 +124,7 @@ int main(int argc, char *argv[])
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
+
 	if (read_config() != ReadConfigStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
