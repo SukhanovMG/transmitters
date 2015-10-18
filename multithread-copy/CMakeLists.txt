@@ -10,7 +10,7 @@ set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
 
 # Build type
 if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None Debug Release." FORCE)
+	set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release." FORCE)
 endif()
 
 # Поиск необходимых пакетов
@@ -79,13 +79,38 @@ configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_no_mempool
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 
 set(SRC main.c)
-set(LIB tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c tm_mempool.c)
+set(MODULES tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c)# tm_mempool.c)
 
-add_library(libs STATIC ${LIB})
-add_dependencies(libs libconfig libjemalloc)
+set(MODULES1 ${MODULES} tm_mempool1.c)
+set(MODULES2 ${MODULES} tm_mempool2.c)
+set(MODULES3 ${MODULES} tm_mempool3.c)
 
-add_executable("${CMAKE_PROJECT_NAME}" ${SRC})
-target_link_libraries("${CMAKE_PROJECT_NAME}" libs
+#add_library(libs STATIC ${MODULES})
+add_library(libs1 STATIC ${MODULES1})
+add_library(libs2 STATIC ${MODULES2})
+add_library(libs3 STATIC ${MODULES3})
+#add_dependencies(libs libconfig libjemalloc)
+add_dependencies(libs1 libconfig libjemalloc)
+add_dependencies(libs2 libconfig libjemalloc)
+add_dependencies(libs3 libconfig libjemalloc)
+
+add_executable("${CMAKE_PROJECT_NAME}_1" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_1" libs1
+                                            rt # Исправить!!!!
+                                            ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
+                                            ${PTHREAD_LIBRARIES}
+                                            ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+                                            )
+                                            
+add_executable("${CMAKE_PROJECT_NAME}_2" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_2" libs2
+                                            rt # Исправить!!!!
+                                            ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
+                                            ${PTHREAD_LIBRARIES}
+                                            ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+                                            )
+add_executable("${CMAKE_PROJECT_NAME}_3" ${SRC})
+target_link_libraries("${CMAKE_PROJECT_NAME}_3" libs3
                                             rt # Исправить!!!!
                                             ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
                                             ${PTHREAD_LIBRARIES}

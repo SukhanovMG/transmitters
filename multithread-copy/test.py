@@ -12,6 +12,9 @@ if len(sys.argv) < 3:
 
 test_exec_name = sys.argv[1]
 test_config_file_name = sys.argv[2]
+start_clients_count = 1
+if len(sys.argv) > 3:
+	start_clients_count = int(sys.argv[3])
 
 # Функция для запуска очередного теста
 # clients_count - количество клиентов в тесте
@@ -26,7 +29,7 @@ def run_test(clients_count):
 	return (test_res == 0)
 
 #Начинаем с одного клиента
-clients_count = 1
+clients_count = start_clients_count
 """
 	Удваивая количество клиентов после успешного теста,
 	ищем количество клиентов, на котором тест проваливается.
@@ -46,19 +49,22 @@ if clients_count == 1 or clients_count == 2:
 a = clients_count / 2
 # b - значение, на котором тест провалился, т.е. последнее значение количества клиентов
 b = clients_count
+# серидина отрезка
+middle = (a + b) / 2
 while not stop_condition:
-	# середина отрезка
-	middle = (a + b) / 2
-
 	# Определяем с какой стороны сокращаем отрезок
 	if run_test(middle):
 		a = middle
 	else:
 		b = middle
+	
+	middle = (a + b) / 2
+	if b - a <= 1:
+		stop_condition = True
 
 	# Если очередная серидина будет нецелой, значит конец
-	if ( (a+b) % 2  != 0):
-		stop_condition = True
+	#if ( (a+b) % 2  != 0):
+	#	stop_condition = True
 # Максимальное количество клиентов - это левая граница
 clients_count = a
 print "Maximum clents = " + str(clients_count)
