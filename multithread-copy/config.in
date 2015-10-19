@@ -21,7 +21,7 @@ TestTime = 10
 UseMemPool = @FOR_CONFIG_USE_MEMPOOL@
 
 # Флаг копирования блока при передаче от главного потока к рабочему
-CopyBlockOnTransfer = @FOR_CONFIN_COPY_BLOCK_ON_TRANSFER@
+CopyBlockOnTransfer = @FOR_CONFIG_COPY_BLOCK_ON_TRANSFER@
 
 # Флаг использования jemalloc
-UseJeMalloc = false
+UseJeMalloc = @FOR_CONFIG_USE_JEMALLOC@
