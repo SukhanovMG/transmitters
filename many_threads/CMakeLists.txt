@@ -33,11 +33,11 @@ add_custom_target(
 )
 add_custom_command(
     OUTPUT ${LIBCONFIG_DST_DIR}/Makefile
-    COMMAND cd ${LIBCONFIG_DST_DIR} && ${LIBCONFIG_DST_DIR}/configure -q
+    COMMAND cd ${LIBCONFIG_DST_DIR} && ${LIBCONFIG_DST_DIR}/configure -q > /dev/null 2>&1
 )
 add_custom_command(
     OUTPUT ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
-    COMMAND cd ${LIBCONFIG_DST_DIR} && make clean 2>1 > /dev/null && make 2>1 > ${CMAKE_BINARY_DIR}/libconfig.log
+    COMMAND cd ${LIBCONFIG_DST_DIR} && make clean > /dev/null 2>&1 && make > ${CMAKE_BINARY_DIR}/libconfig.log 2>&1
     DEPENDS ${LIBCONFIG_DST_DIR}/Makefile
 )
 
@@ -45,18 +45,23 @@ add_custom_command(
 set(LIBJEMALLOC_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libs/jemalloc")
 set(LIBJEMALLOC_DST_DIR "${CMAKE_BINARY_DIR}/libs/jemalloc")
 
-file(COPY ${LIBJEMALLOC_SRC_DIR} DESTINATION ${CMAKE_BINARY_DIR}/libs)
+#file(COPY ${LIBJEMALLOC_SRC_DIR} DESTINATION ${CMAKE_BINARY_DIR}/libs)
+add_custom_command(
+    OUTPUT ${LIBJEMALLOC_DST_DIR}
+    COMMAND tar -xzf "${CMAKE_CURRENT_SOURCE_DIR}/libs/jemalloc.tar.gz" --directory "${CMAKE_BINARY_DIR}/libs/"
+)
 add_custom_target(
     libjemalloc
     DEPENDS ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
 )
 add_custom_command(
     OUTPUT ${LIBJEMALLOC_DST_DIR}/Makefile
-    COMMAND cd ${LIBJEMALLOC_DST_DIR} && ${LIBJEMALLOC_DST_DIR}/configure -q --with-jemalloc-prefix="je_"
+    COMMAND cd ${LIBJEMALLOC_DST_DIR} && ${LIBJEMALLOC_DST_DIR}/configure -q --with-jemalloc-prefix="je_"  > /dev/null 2>&1
+    DEPENDS ${LIBJEMALLOC_DST_DIR}
 )
 add_custom_command(
     OUTPUT ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
-    COMMAND cd ${LIBJEMALLOC_DST_DIR} && make clean 2>1 > /dev/null && make 2>1 > ${CMAKE_BINARY_DIR}/jemalloc.log
+    COMMAND cd ${LIBJEMALLOC_DST_DIR} && make clean > /dev/null 2>&1 && make > ${CMAKE_BINARY_DIR}/jemalloc.log 2>&1
     DEPENDS ${LIBJEMALLOC_DST_DIR}/Makefile
 )
 
