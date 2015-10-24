@@ -1,6 +1,6 @@
 
 #include "tm_queue.h"
-#include "tm_read_config.h"
+#include "tm_configuration.h"
 #include "tm_alloc.h"
 #include "tm_logging.h"
 #include <stdio.h>

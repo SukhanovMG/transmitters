@@ -17,7 +17,7 @@
 #include <math.h>
 
 #include "tm_logging.h"
-#include "tm_read_config.h"
+#include "tm_configuration.h"
 
 #include "tm_time.h"
 

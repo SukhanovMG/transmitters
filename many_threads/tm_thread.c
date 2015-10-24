@@ -2,7 +2,7 @@
 #include "tm_queue.h"
 #include "tm_block.h"
 #include "tm_logging.h"
-#include "tm_read_config.h"
+#include "tm_configuration.h"
 #include "tm_time.h"
 #include <pthread.h>
 

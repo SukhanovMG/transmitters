@@ -1,4 +1,4 @@
-#include "tm_read_config.h"
+#include "tm_configuration.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -18,31 +18,37 @@ static int configuration_inited = 0; /*!< флаг инициализирова�
  * @param config_file путь и имя файла конфигурации
  * @return ReadConfigStatus_ERROR, TranscoderReadConfigStatus_SUCCESS
  */
-ReadConfigStatus read_config_init(const char *config_file)
+ConfigurationStatus tm_configuration_init(const char *config_file, int clients_count)
 {
 	if (configuration_inited)
-		return ReadConfigStatus_SUCCESS;
+		return ConfigurationStatus_SUCCESS;
 
 	memset(&configuration, 0, sizeof(configuration));
 
+	if (clients_count <= 0) {
+		TM_LOG_ERROR("Clients count must be 1 or higher (%d given).", clients_count);
+		return ConfigurationStatus_ERROR;
+	}
+	configuration.clients_count = clients_count;
+
 	if (!(configuration.config_file = (char*)tm_strdup(config_file, -1))) {
-		fprintf(stderr, "%s[%d]: Allocate memrory error\n", __FILE__, __LINE__);
-		return ReadConfigStatus_ERROR;
+		TM_LOG_ERROR("tm_strdup fail");
+		return ConfigurationStatus_ERROR;
 	}
 
 	config_init(&cfg);
 	configuration_inited = 1;
-	return ReadConfigStatus_SUCCESS;
+	return ConfigurationStatus_SUCCESS;
 }
 
 /**
  * Уничтожение ресурсов занятых конфигурационными данными
  * @return Transcoder_ReadConfigStatus_ERROR, TranscoderReadConfigStatus
  */
-ReadConfigStatus read_config_destroy(void)
+ConfigurationStatus tm_configuration_destroy(void)
 {
 	if (!configuration_inited)
-		return ReadConfigStatus_SUCCESS;
+		return ConfigurationStatus_SUCCESS;
 
 	configuration_inited = 0;
 	config_destroy(&cfg);
@@ -52,12 +58,12 @@ ReadConfigStatus read_config_destroy(void)
 		tm_free(configuration.config_file);
 	memset(&configuration, 0, sizeof(configuration));
 
-	return ReadConfigStatus_SUCCESS;
+	return ConfigurationStatus_SUCCESS;
 }
 
-ReadConfigStatus read_config_compute_sleep_time()
+ConfigurationStatus read_config_compute_sleep_time()
 {
-	ReadConfigStatus ret = ReadConfigStatus_ERROR;
+	ConfigurationStatus ret = ConfigurationStatus_ERROR;
 
 	struct timespec wait_time;
 	double time_in_seconds = 0;
@@ -75,7 +81,7 @@ ReadConfigStatus read_config_compute_sleep_time()
 	if (wait_time.tv_sec > 0 || wait_time.tv_nsec > 0)
 	{
 		configuration.sleep_time = wait_time;
-		ret = ReadConfigStatus_SUCCESS;
+		ret = ConfigurationStatus_SUCCESS;
 	}
 
 	return ret;
@@ -84,27 +90,17 @@ ReadConfigStatus read_config_compute_sleep_time()
  * @brief Чтение конфигурации
  * @return Transcoder_ReadConfigStatus_ERROR, TranscoderReadConfigStatus
  */
-ReadConfigStatus read_config(void)
+ConfigurationStatus tm_configuration_configure(void)
 {
 
 	if (!configuration_inited) {
-		return ReadConfigStatus_ERROR;
+		return ConfigurationStatus_ERROR;
 	}
 
 	/* Чтение конфигурационного файла */
 	if (!config_read_file(&cfg, configuration.config_file)) {
 		goto read_config_error;
 	}
-
-	if (tm_read_config_clients_count <= 0)
-	{
-		if (!config_lookup_int(&cfg, "ClientsCount", &configuration.clients_count)) {
-			TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
-			goto read_config_error;
-		}
-	}
-	else
-		configuration.clients_count = tm_read_config_clients_count;
 
 	if (!config_lookup_int(&cfg, "BlockSize", &configuration.block_size)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
@@ -116,7 +112,7 @@ ReadConfigStatus read_config(void)
 		goto read_config_error;
 	}
 
-	if (read_config_compute_sleep_time() != ReadConfigStatus_SUCCESS) {
+	if (read_config_compute_sleep_time() != ConfigurationStatus_SUCCESS) {
 		TM_LOG_ERROR("Incompatible bitrate and/or block size");
 		goto read_config_error;
 	}
@@ -156,9 +152,9 @@ ReadConfigStatus read_config(void)
 	TM_LOG_TRACE("%d clients. %d kb/s; max diff %lf kb/s (%d%%)", configuration.clients_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
 	TM_LOG_TRACE("copy: %d; mempool: %d; jemalloc: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc);
 
-	return ReadConfigStatus_SUCCESS;
+	return ConfigurationStatus_SUCCESS;
 
 read_config_error:
-	read_config_destroy();
-	return ReadConfigStatus_ERROR;
+	tm_configuration_destroy();
+	return ConfigurationStatus_ERROR;
 }

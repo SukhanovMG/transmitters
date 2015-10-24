@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <getopt.h>
-#include "tm_read_config.h"
+#include "tm_configuration.h"
 #include "tm_compat.h"
 #include "tm_alloc.h"
 #include "tm_thread.c"
@@ -13,7 +13,9 @@
 #include "tm_block.h"
 
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
-static int clients_option_flag = 0;
+static int clients_count;
+static int work_threads_count;
+//static int clients_option_flag = 0;
 
 //Вывод помощи по параметрам командной строки
 static void main_show_help()
@@ -22,7 +24,7 @@ static void main_show_help()
 	printf("\n");
 	printf("Arguments:\n");
 	printf("  -c PATH, --config=PATH     use specific configuration file\n");
-	printf("  -C COUNT, --clients=COUNT  override clients count in configuration file\n");
+	printf("  -C COUNT, --clients=COUNT  set number of clients\n");
 	printf("  -h, --help                 show this help and exit\n");
 }
 
@@ -66,8 +68,7 @@ static int main_args_handle(int argc, char *argv[])
 				tm_strlcpy(main_conf_file, optarg, sizeof(main_conf_file));
 				break;
 			case 'C':
-				clients_option_flag = 1;
-				tm_read_config_clients_count = atoi(optarg);
+				clients_count = atoi(optarg);
 				break;
 			case 'h':
 			case '?':
@@ -82,15 +83,6 @@ static int main_args_handle(int argc, char *argv[])
 	if (stat(main_conf_file, &buffer)) {
 		fprintf(stderr, "%s[%d]: configuration file (%s) failed\n", __FILE__, __LINE__, main_conf_file);
 		return -1;
-	}
-
-	if (clients_option_flag)
-	{
-		if (tm_read_config_clients_count <= 0)
-		{
-			fprintf(stderr, "%s[%d]: bad clients count (%d)\n", __FILE__, __LINE__, tm_read_config_clients_count);
-			return -1;
-		}
 	}
 
 	return 0;
@@ -120,12 +112,12 @@ int main(int argc, char *argv[])
 	}
 
 	/* Инициализация и чтение конфигурационного файла */
-	if (read_config_init(main_conf_file) != ReadConfigStatus_SUCCESS) {
+	if (tm_configuration_init(main_conf_file, clients_count) != ConfigurationStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
 
-	if (read_config() != ReadConfigStatus_SUCCESS) {
+	if (tm_configuration_configure() != ConfigurationStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
@@ -159,7 +151,7 @@ application_exit: {
 	tm_block_fin();
 
 	/* удаление ресурсов конфигурации */
-	read_config_destroy();
+	tm_configuration_destroy();
 
 	/* завершение логирования */
 	tm_log_destroy();

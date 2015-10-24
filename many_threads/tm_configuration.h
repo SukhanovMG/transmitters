@@ -1,5 +1,5 @@
-#ifndef TM_READ_CONFIG_H_
-#define TM_READ_CONFIG_H_
+#ifndef TM_CONFIGURATION_H_
+#define TM_CONFIGURATION_H_
 
 #include <libconfig.h>
 #include <inttypes.h>
@@ -9,16 +9,17 @@
 /**
  * Перечислитель статусов чтения настроек
  */
-typedef enum _ReadConfigStatus {
-	ReadConfigStatus_ERROR = 0,/*!< Ошибки при чтении настроек */
-	ReadConfigStatus_SUCCESS, /*!< Успешное чтение настроек */
-} ReadConfigStatus;
+typedef enum _ConfigurationStatus {
+	ConfigurationStatus_ERROR = 0,/*!< Ошибки при чтении настроек */
+	ConfigurationStatus_SUCCESS, /*!< Успешное чтение настроек */
+} ConfigurationStatus;
 
 /**
  * Настройки программы
  */
 typedef struct _read_config_parameters_t {
 	char *config_file;			/*!< Полный путь с именем файла конфигурации */
+	int work_threads_count;		/*!< Число рабочих потоков */
 	int clients_count;			/*!< Количество рабочих потоков */
 	int block_size;				/*!< Размер передаваемого блока */
 	int bitrate;				/*!< Битрейт информации как бы поступающей на вход */
@@ -29,14 +30,14 @@ typedef struct _read_config_parameters_t {
 	int test_time;				/*!< Время в секундах, в течении которого проводится тест, т.е. работает программа. Если битрейт это время был достаточен, то программа успешно завершается */
 	int use_mempool;			/*!< Флаг использования пула */
 	int copy_block_on_transfer;	/*!< Флаг копирования блока при передаче от главного потока к рабочему */
-	int use_jemalloc;		/*!< Флаг использования jemalloc */
+	int use_jemalloc;			/*!< Флаг использования jemalloc */
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */
 extern int tm_read_config_clients_count;
 
-ReadConfigStatus read_config_init(const char *config_file);
-ReadConfigStatus read_config_destroy();
-ReadConfigStatus read_config();
+ConfigurationStatus tm_configuration_init(const char *config_file, int clients_count);
+ConfigurationStatus tm_configuration_configure();
+ConfigurationStatus tm_configuration_destroy();
 
-#endif /* TM_READ_CONFIG_H_ */
+#endif /* TM_CONFIGURATION_H_ */

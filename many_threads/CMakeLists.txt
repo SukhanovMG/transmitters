@@ -106,7 +106,7 @@ configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
 
 set(SRC main.c)
-set(MODULES tm_alloc.c tm_compat.c tm_read_config.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c tm_mempool.c)
+set(MODULES tm_alloc.c tm_compat.c tm_configuration.c tm_queue.c tm_refcount.c tm_block.c tm_logging.c tm_time.c tm_mempool.c)
 
 add_library(libs STATIC ${MODULES})
 add_dependencies(libs libconfig libjemalloc)
