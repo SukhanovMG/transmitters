@@ -138,11 +138,6 @@ TMThreadStatus tm_threads_init(int count)
 
 	for(int i = 0; i < count; i++)
 	{
-		TM_LOG_TRACE("clients_count = %d", work_threads.threads[i].clients_count);
-	}
-
-	for(int i = 0; i < count; i++)
-	{
 		if (tm_thread_thread_create(&work_threads.threads[i]) != TMThreadStatus_SUCCESS)
 			return TMThreadStatus_ERROR;
 
