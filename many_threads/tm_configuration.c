@@ -18,7 +18,7 @@ static int configuration_inited = 0; /*!< флаг инициализирова�
  * @param config_file путь и имя файла конфигурации
  * @return ReadConfigStatus_ERROR, TranscoderReadConfigStatus_SUCCESS
  */
-ConfigurationStatus tm_configuration_init(const char *config_file, int clients_count)
+ConfigurationStatus tm_configuration_init(const char *config_file, int clients_count, int work_threads_count)
 {
 	if (configuration_inited)
 		return ConfigurationStatus_SUCCESS;
@@ -31,7 +31,17 @@ ConfigurationStatus tm_configuration_init(const char *config_file, int clients_c
 	}
 	configuration.clients_count = clients_count;
 
-	if (!(configuration.config_file = (char*)tm_strdup(config_file, -1))) {
+	if (work_threads_count < 0) {
+		TM_LOG_ERROR("Clients count must be 0 or higher (%d given), where 0 means that thread count = clients count.", work_threads_count);
+		return ConfigurationStatus_ERROR;
+	} else if (work_threads_count == 0) {
+		configuration.work_threads_count = clients_count;
+	} else {
+		configuration.work_threads_count = work_threads_count;
+	}
+
+	configuration.config_file = (char*)tm_strdup(config_file, -1);
+	if (!configuration.config_file) {
 		TM_LOG_ERROR("tm_strdup fail");
 		return ConfigurationStatus_ERROR;
 	}
@@ -149,7 +159,7 @@ ConfigurationStatus tm_configuration_configure(void)
 		goto read_config_error;
 	}
 
-	TM_LOG_TRACE("%d clients. %d kb/s; max diff %lf kb/s (%d%%)", configuration.clients_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
+	TM_LOG_TRACE("%d clients. %d threads. %d kb/s; max diff %lf kb/s (%d%%)", configuration.clients_count, configuration.work_threads_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
 	TM_LOG_TRACE("copy: %d; mempool: %d; jemalloc: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc);
 
 	return ConfigurationStatus_SUCCESS;

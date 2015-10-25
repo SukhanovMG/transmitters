@@ -36,7 +36,7 @@ typedef struct _read_config_parameters_t {
 extern read_config_parameters_t configuration; /*!< Настройки программы */
 extern int tm_read_config_clients_count;
 
-ConfigurationStatus tm_configuration_init(const char *config_file, int clients_count);
+ConfigurationStatus tm_configuration_init(const char *config_file, int clients_count, int work_threads_count);
 ConfigurationStatus tm_configuration_configure();
 ConfigurationStatus tm_configuration_destroy();
 

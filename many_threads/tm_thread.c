@@ -12,7 +12,8 @@ typedef struct _tm_thread_t {
 	pthread_t thread;
 	tm_queue_ctx *queue;
 	int shutdown;
-	tm_time_bitrate bitrate_ctx;
+	tm_time_bitrate *bitrate_ctx;
+	int clients_count;
 } tm_thread_t;
 
 typedef struct _tm_threads_t {
@@ -29,18 +30,23 @@ static tm_threads_t work_threads;
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
-	tm_block *block = NULL;
-
+	tm_queue_elem_ctx *elem = NULL;
+	int client_id = 0;
 	while(!thread_ctx->shutdown)
 	{
-		block = tm_queue_pop_front(thread_ctx->queue);
-		if (block)
+		elem = tm_queue_pop_front(thread_ctx->queue);
+		if (elem)
 		{
-			tm_block_dispose_block(block);
-			if (tm_time_sample_bitrate(&thread_ctx->bitrate_ctx))
+			tm_block_dispose_block(elem->block);
+			client_id = elem->client_id;
+			tm_free(elem);
+			if (tm_time_sample_bitrate(&thread_ctx->bitrate_ctx[client_id]))
 			{
-				if (thread_ctx->bitrate_ctx.bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
-					tm_low_bitrate_flag = 1;
+					if (thread_ctx->bitrate_ctx[client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
+					{
+						tm_low_bitrate_flag = 1;
+						break;
+					}
 			}
 		}
 	}
@@ -60,7 +66,11 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 
 	thread->shutdown = 0;
 
-	thread->bitrate_ctx.bitrate_sample_count = -1;
+	thread->bitrate_ctx = (tm_time_bitrate*)tm_calloc(thread->clients_count * sizeof(tm_time_bitrate));
+	if(!thread->bitrate_ctx)
+		return status;
+	for(int i = 0; i < thread->clients_count; i++)
+		thread->bitrate_ctx[i].bitrate_sample_count = -1;
 
 	pthread_create_ret = pthread_create(&thread->thread, NULL, (void*(*)(void *)) tm_thread_function, thread);
 	if(pthread_create_ret != 0)
@@ -89,6 +99,7 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 
 	pthread_join(thread->thread, &thread_status);
 	tm_queue_destroy(thread->queue);
+	tm_free(thread->bitrate_ctx);
 
 	status = TMThreadStatus_SUCCESS;
 	return status;
@@ -115,6 +126,20 @@ TMThreadStatus tm_threads_init(int count)
 
 	if(!work_threads.threads)
 		return status;
+
+	for(int i = 0; i < count; i++)
+	{
+		work_threads.threads[i].clients_count = configuration.clients_count / count;
+	}
+	for(int i = 0; i < configuration.clients_count % count; i++)
+	{
+		work_threads.threads[i].clients_count++;
+	}
+
+	for(int i = 0; i < count; i++)
+	{
+		TM_LOG_TRACE("clients_count = %d", work_threads.threads[i].clients_count);
+	}
 
 	for(int i = 0; i < count; i++)
 	{
@@ -163,13 +188,17 @@ TMThreadStatus tm_threads_work()
 
 	while(!tm_shutdown_flag && !tm_low_bitrate_flag)
 	{
-		//TM_LOG_TRACE("tm_threads_work iteration");
 		current_time = tm_time_get_current_ntime();
 		if (current_time - work_threads.start_time >= (double) configuration.test_time)
 			break;
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
-			tm_queue_push_back(work_threads.threads[i].queue, block);
+		{
+			for (int j = 0; j < work_threads.threads[i].clients_count; j++)
+			{
+				tm_queue_push_back_client_id(work_threads.threads[i].queue, block, j);
+			}
+		}
 		tm_block_dispose_block(block);
 		nanosleep(&configuration.sleep_time, NULL);
 	}

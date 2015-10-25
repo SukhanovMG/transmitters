@@ -15,7 +15,6 @@
 static char main_conf_file[PATH_MAX];	///< полный путь к файлу конфигурации приложения
 static int clients_count;
 static int work_threads_count;
-//static int clients_option_flag = 0;
 
 //Вывод помощи по параметрам командной строки
 static void main_show_help()
@@ -41,7 +40,7 @@ static int main_args_handle(int argc, char *argv[])
 	struct stat buffer;
 	int res = 0;
 	int option_index = -1;
-	const char *short_options = "c:C:h";
+	const char *short_options = "c:C:ht:";
 	const struct option long_options[] = {
 			{
 				"config",
@@ -53,6 +52,11 @@ static int main_args_handle(int argc, char *argv[])
 				required_argument,
 				NULL,
 				'C' },
+			{
+				"work-threads",
+				required_argument,
+				NULL,
+				't' },
 			{
 				"help",
 				no_argument,
@@ -69,6 +73,9 @@ static int main_args_handle(int argc, char *argv[])
 				break;
 			case 'C':
 				clients_count = atoi(optarg);
+				break;
+			case 't':
+				work_threads_count = atoi(optarg);
 				break;
 			case 'h':
 			case '?':
@@ -112,7 +119,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Инициализация и чтение конфигурационного файла */
-	if (tm_configuration_init(main_conf_file, clients_count) != ConfigurationStatus_SUCCESS) {
+	if (tm_configuration_init(main_conf_file, clients_count, work_threads_count) != ConfigurationStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
@@ -129,7 +136,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Инициализация рабочих потоков */
-	if (tm_threads_init(configuration.clients_count) != TMThreadStatus_SUCCESS) {
+	if (tm_threads_init(configuration.work_threads_count) != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
 		goto application_exit;
 	}
