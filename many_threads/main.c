@@ -107,6 +107,7 @@ int main(int argc, char *argv[])
 	if ((res = main_args_handle(argc, argv)) != 0) {
 		if (res < 0) {
 			rc = EXIT_FAILURE;
+			fprintf(stderr, "%s[%d]: args handling failed\n", __FILE__, __LINE__);
 		}
 		goto application_exit;
 	}
@@ -115,29 +116,34 @@ int main(int argc, char *argv[])
 	/* инициализация лога */
 	if(tm_log_init("tm") != TMLogStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
+		fprintf(stderr, "%s[%d]: log initialization failed\n", __FILE__, __LINE__);
 		goto application_exit;
 	}
 
 	/* Инициализация и чтение конфигурационного файла */
 	if (tm_configuration_init(main_conf_file, clients_count, work_threads_count) != ConfigurationStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
+		TM_LOG_ERROR("Configuration initialization failed.");
 		goto application_exit;
 	}
 
 	if (tm_configuration_configure() != ConfigurationStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
+		TM_LOG_ERROR("Configuring failed.");
 		goto application_exit;
 	}
 
 	/* Инициализация модуля работы с блоками */
 	if (!tm_block_init()) {
 		rc = EXIT_FAILURE;
+		TM_LOG_ERROR("Block module initialization failed.");
 		goto application_exit;
 	}
 
 	/* Инициализация рабочих потоков */
 	if (tm_threads_init(configuration.work_threads_count) != TMThreadStatus_SUCCESS) {
 		rc = EXIT_FAILURE;
+		TM_LOG_ERROR("Threads initialization failed.");
 		goto application_exit;
 	}
 
