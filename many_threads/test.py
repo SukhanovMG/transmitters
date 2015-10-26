@@ -12,16 +12,31 @@ if len(sys.argv) < 3:
 
 test_exec_name = sys.argv[1]
 test_config_file_name = sys.argv[2]
+fixed_number_of_threads = 0
 start_clients_count = 1
+
 if len(sys.argv) > 3:
-	start_clients_count = int(sys.argv[3])
+	fixed_number_of_threads = int(sys.argv[3])
+if len(sys.argv) > 4:
+	start_clients_count = int(sys.argv[4])
 
 # Функция для запуска очередного теста
 # clients_count - количество клиентов в тесте
 # Возвращает True, если тест пройден, False, если не пройден
 def run_test(clients_count):
-	print test_exec_name + " -c" + " " + test_config_file_name + " -C" + " " + str(clients_count)
-	test_res = subprocess.call([test_exec_name, "-c", test_config_file_name, "-C", str(clients_count)])
+	exec_params = [test_exec_name, "-c", test_config_file_name, "--clients=" + str(clients_count)]
+	if fixed_number_of_threads > 0:
+		exec_params.append("--work-threads=" + str(fixed_number_of_threads))
+
+	exec_string = ""
+	for par in exec_params:
+		if exec_string == "":
+			exec_string = par
+		else:
+			exec_string = exec_string + " " + par
+	print exec_string
+
+	test_res = subprocess.call(exec_params)
 	if test_res == 0:
 		print "===clients_count = " + str(clients_count) + " passed==="
 	else:
