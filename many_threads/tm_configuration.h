@@ -4,6 +4,7 @@
 #include <libconfig.h>
 #include <inttypes.h>
 #include <linux/limits.h>
+#include <unistd.h>
 #include <time.h>
 
 /**
@@ -23,7 +24,8 @@ typedef struct _read_config_parameters_t {
 	int clients_count;			/*!< Количество рабочих потоков */
 	int block_size;				/*!< Размер передаваемого блока */
 	int bitrate;				/*!< Битрейт информации как бы поступающей на вход */
-	struct timespec sleep_time;	/*!< Период между распределением пакетов по потокам */
+	//struct timespec sleep_time;	/*!< Период между распределением пакетов по потокам */
+	useconds_t sleep_time;
 	int avg_bitrate_calc_time;	/*!< Время (в секундах), в течении которого накапливается информация о битрейте перед его рассчётом */
 	int bitrate_diff_percent;	/*!< Разница в процентах от исходного битрейта, которая может быть у клиента */
 	double bitrate_diff;		/*!< Разница в единицах битрейта от исходного битрейта, которая может быть у клиента */

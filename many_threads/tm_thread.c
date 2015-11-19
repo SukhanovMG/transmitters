@@ -35,6 +35,7 @@ static void tm_thread_function(void* thread)
 	while(!thread_ctx->shutdown)
 	{
 		elem = tm_queue_pop_front(thread_ctx->queue);
+		//TM_LOG_STRACE();
 		if (elem)
 		{
 			tm_block_dispose_block(elem->block);
@@ -183,6 +184,10 @@ TMThreadStatus tm_threads_work()
 
 	while(!tm_shutdown_flag && !tm_low_bitrate_flag)
 	{
+		double time_after_work = 0.0;
+		useconds_t diff = 0;
+		useconds_t corrected_sleep_time = 0;
+
 		current_time = tm_time_get_current_ntime();
 		if (current_time - work_threads.start_time >= (double) configuration.test_time)
 			break;
@@ -195,7 +200,15 @@ TMThreadStatus tm_threads_work()
 			}
 		}
 		tm_block_dispose_block(block);
-		nanosleep(&configuration.sleep_time, NULL);
+		time_after_work = tm_time_get_current_ntime();
+		diff = (useconds_t)((time_after_work - current_time) * 1000000);
+		while (diff > configuration.sleep_time)
+			diff -= configuration.sleep_time;
+
+		corrected_sleep_time = configuration.sleep_time - diff;
+		//TM_LOG_TRACE("t1 = %25.6lf; t2 = %25.6lf", current_time, time_after_work);
+		//TM_LOG_TRACE("corrected sleep time: %ld", corrected_sleep_time);
+		usleep(corrected_sleep_time);
 	}
 
 	if (tm_low_bitrate_flag)

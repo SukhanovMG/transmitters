@@ -75,7 +75,7 @@ ConfigurationStatus read_config_compute_sleep_time()
 {
 	ConfigurationStatus ret = ConfigurationStatus_ERROR;
 
-	struct timespec wait_time;
+	//struct timespec wait_time;
 	double time_in_seconds = 0;
 
 	if (configuration.block_size <= 0)
@@ -85,12 +85,19 @@ ConfigurationStatus read_config_compute_sleep_time()
 		return ret;
 
 	time_in_seconds = (double) configuration.block_size / (configuration.bitrate / 8 * 1024);
+/*
 	wait_time.tv_sec = (int) time_in_seconds;
 	wait_time.tv_nsec = (time_in_seconds - wait_time.tv_sec) * 1000000000;
 
 	if (wait_time.tv_sec > 0 || wait_time.tv_nsec > 0)
 	{
 		configuration.sleep_time = wait_time;
+		ret = ConfigurationStatus_SUCCESS;
+	}
+*/
+
+	if (time_in_seconds < 1) {
+		configuration.sleep_time = (useconds_t)(time_in_seconds * 1000000.0);
 		ret = ConfigurationStatus_SUCCESS;
 	}
 
