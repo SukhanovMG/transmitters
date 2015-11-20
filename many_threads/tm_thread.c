@@ -206,8 +206,6 @@ TMThreadStatus tm_threads_work()
 			diff -= configuration.sleep_time;
 
 		corrected_sleep_time = configuration.sleep_time - diff;
-		//TM_LOG_TRACE("t1 = %25.6lf; t2 = %25.6lf", current_time, time_after_work);
-		//TM_LOG_TRACE("corrected sleep time: %ld", corrected_sleep_time);
 		usleep(corrected_sleep_time);
 	}
 

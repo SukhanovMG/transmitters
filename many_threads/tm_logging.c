@@ -146,7 +146,7 @@ void _tm_log_string(const char *file, const char *line, const char *function, TM
 				syslog(LOG_DEBUG, "%s  D %s[%s]: %s", ts, filen, line, lprefix);
 			break;
 		case TMLogTypes_STRACE:
-			syslog(LOG_DEBUG, "%s [%lu] ST %s[%s]:%x:%s", ts, th, filen, line, (unsigned int)th, function);
+			syslog(LOG_DEBUG, "%s ST %s[%s]:%x:%s", ts, filen, line, (unsigned int)th, function);
 			break;
 		case TMLogTypes_TSTRACE:
 			if(format) {
