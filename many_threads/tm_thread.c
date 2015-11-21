@@ -1,11 +1,13 @@
 #include "tm_thread.h"
+
+#include "tm_alloc.h"
 #include "tm_queue.h"
 #include "tm_block.h"
 #include "tm_logging.h"
 #include "tm_configuration.h"
 #include "tm_time.h"
-#include <pthread.h>
 
+#include <pthread.h>
 #include <signal.h>
 
 typedef struct _tm_thread_t {
