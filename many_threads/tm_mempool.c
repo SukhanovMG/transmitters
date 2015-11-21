@@ -17,6 +17,7 @@ typedef struct _mempool_elem {
 
 typedef struct _mempool {
 	pthread_mutex_t mutex;
+	int thread_safe;
 
 	unsigned int elem_size;
 	unsigned int count;
@@ -44,7 +45,8 @@ void tm_mempool_delete(tm_mempool *pool)
 			free(e);
 		}
 
-		pthread_mutex_destroy(&_pool->mutex);
+		if (_pool->thread_safe)
+			pthread_mutex_destroy(&_pool->mutex);
 
 		free(_pool);
 	}
@@ -74,7 +76,7 @@ static int tm_mempool_grow(mempool* pool, unsigned int count)
 	return ret;
 }
 
-tm_mempool *tm_mempool_new(unsigned int elem_size, unsigned int count)
+tm_mempool *tm_mempool_new(unsigned int elem_size, unsigned int count, int thread_safe)
 {
 	tm_mempool *_pool = NULL;
 	mempool *pool = NULL;
@@ -82,7 +84,9 @@ tm_mempool *tm_mempool_new(unsigned int elem_size, unsigned int count)
 	pool = tm_calloc(sizeof(mempool));
 	if (pool) {
 
-		if(pthread_mutex_init(&pool->mutex, NULL) != 0)
+		pool->thread_safe = thread_safe;
+
+		if(pool->thread_safe && pthread_mutex_init(&pool->mutex, NULL) != 0)
 		{
 			free(pool);
 			return NULL;
@@ -91,7 +95,8 @@ tm_mempool *tm_mempool_new(unsigned int elem_size, unsigned int count)
 		pool->elem_size = elem_size;
 
 		if (!tm_mempool_grow(pool, count)) {
-			pthread_mutex_destroy(&pool->mutex);
+			if (pool->thread_safe)
+				pthread_mutex_destroy(&pool->mutex);
 			free(pool);
 			return NULL;
 		}
@@ -108,7 +113,8 @@ void *tm_mempool_get(tm_mempool *pool)
 
 	if (pool) {
 
-		pthread_mutex_lock(&_pool->mutex);
+		if (_pool->thread_safe)
+			pthread_mutex_lock(&_pool->mutex);
 
 		if (_pool->free == 0) {
 			tm_mempool_grow(_pool, _pool->count);
@@ -122,7 +128,8 @@ void *tm_mempool_get(tm_mempool *pool)
 			_pool->free--;
 		}
 
-		pthread_mutex_unlock(&_pool->mutex);
+		if (_pool->thread_safe)
+			pthread_mutex_unlock(&_pool->mutex);
 	}
 
 	return data;
@@ -134,9 +141,11 @@ void tm_mempool_return(tm_mempool *pool, void *data)
 	if (pool && data)
 	{
 		mempool_elem *e = data - sizeof(mempool_elem);
-		pthread_mutex_lock(&_pool->mutex);
+		if (_pool->thread_safe)
+			pthread_mutex_lock(&_pool->mutex);
 		DL_APPEND(_pool->elements, e);
 		_pool->free++;
-		pthread_mutex_unlock(&_pool->mutex);
+		if (_pool->thread_safe)
+			pthread_mutex_unlock(&_pool->mutex);
 	}
 }

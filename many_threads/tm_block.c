@@ -30,7 +30,7 @@ int tm_block_init()
 	int result = 1;
 
 	if (configuration.use_mempool && !mempool) {
-		mempool = tm_mempool_new(configuration.block_size, 1000);
+		mempool = tm_mempool_new(configuration.block_size, 1000, 1);
 		if (!mempool)
 			result = 0;
 	}
