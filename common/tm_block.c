@@ -7,7 +7,7 @@
 
 #include <jemalloc/jemalloc.h>
 
-#define TM_BLOCK_DEBUG 1
+#define TM_BLOCK_DEBUG 0
 
 #if !TM_BLOCK_DEBUG
 #define TM_LOG_DTRACE(...)
