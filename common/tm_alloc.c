@@ -2,12 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "tm_alloc.h"
 #include "tm_compat.h"
 #include "tm_logging.h"
-#include "tm_configuration.h"
 
 
 /**
@@ -78,7 +76,7 @@ static tm_alloc_t tm_realloc_inner(tm_alloc_t memptr, size_t new_size)
 static char *tm_strdup_inner(const char *string, int length)
 {
 	char *str = NULL;
-	int len = length < 0 ? tm_strlen(string) : length;
+	size_t len = length < 0 ? tm_strlen(string) : (size_t)length;
 
 	if (len && string) {
 		str = (char*)tm_calloc_inner(len + 1, NULL);
@@ -120,7 +118,7 @@ char *_tm_strdup_d(const char *string, int length, int ln, char *file, const cha
 {
 	char *res;
 	res = tm_strdup_inner(string, length);
-	syslog(LOG_DEBUG, " STRDUP %s:[%d]:%s -> [%p] '%s'", file, ln, func, res, prm);
+	syslog(LOG_DEBUG, " STRDUP %s:[%d]:%s -> [%p] '%s'", file, ln, func, (void*)res, prm);
 	return res;
 }
 

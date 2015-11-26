@@ -1,14 +1,10 @@
 #include "tm_configuration.h"
 
 #include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/stat.h>
 
 #include "tm_alloc.h"
 #include "tm_logging.h"
 
-int tm_read_config_clients_count = -1;
 read_config_parameters_t configuration;
 static config_t cfg; /*!< Котекст библиотеки чтения файлов конфигурации */
 static int configuration_inited = 0; /*!< флаг инициализированности конфигурации */
@@ -40,7 +36,7 @@ ConfigurationStatus tm_configuration_init(const char *config_file, int clients_c
 		configuration.work_threads_count = work_threads_count;
 	}
 
-	configuration.config_file = (char*)tm_strdup(config_file, -1);
+	configuration.config_file = tm_strdup(config_file, -1);
 	if (!configuration.config_file) {
 		TM_LOG_ERROR("tm_strdup fail");
 		return ConfigurationStatus_ERROR;
@@ -85,16 +81,6 @@ ConfigurationStatus read_config_compute_sleep_time()
 		return ret;
 
 	time_in_seconds = (double) configuration.block_size / (configuration.bitrate / 8 * 1024);
-/*
-	wait_time.tv_sec = (int) time_in_seconds;
-	wait_time.tv_nsec = (time_in_seconds - wait_time.tv_sec) * 1000000000;
-
-	if (wait_time.tv_sec > 0 || wait_time.tv_nsec > 0)
-	{
-		configuration.sleep_time = wait_time;
-		ret = ConfigurationStatus_SUCCESS;
-	}
-*/
 
 	if (time_in_seconds < 1) {
 		configuration.sleep_time = (useconds_t)(time_in_seconds * 1000000.0);

@@ -110,7 +110,7 @@ tm_block *tm_block_copy(tm_block *block)
 	if (!copy)
 		return NULL;
 
-	memcpy(copy->data, block->data, configuration.block_size);
+	memcpy(copy->data, block->data, (size_t)configuration.block_size);
 
 	TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
 

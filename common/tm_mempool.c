@@ -19,9 +19,9 @@ typedef struct _mempool {
 	pthread_mutex_t mutex;
 	int thread_safe;
 
-	unsigned int elem_size;
-	unsigned int count;
-	unsigned int free;
+	size_t elem_size;
+	size_t count;
+	size_t free;
 
 	mempool_elem *initial_elements;
 	mempool_elem *elements;
@@ -52,7 +52,7 @@ void tm_mempool_delete(tm_mempool *pool)
 	}
 }
 
-static int tm_mempool_grow(mempool* pool, unsigned int count)
+static int tm_mempool_grow(mempool* pool, size_t count)
 {
 	int ret = 0;
 	if (count == 0) {
@@ -76,7 +76,7 @@ static int tm_mempool_grow(mempool* pool, unsigned int count)
 	return ret;
 }
 
-tm_mempool *tm_mempool_new(unsigned int elem_size, unsigned int count, int thread_safe)
+tm_mempool *tm_mempool_new(size_t elem_size, size_t count, int thread_safe)
 {
 	tm_mempool *_pool = NULL;
 	mempool *pool = NULL;
