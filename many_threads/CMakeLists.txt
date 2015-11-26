@@ -4,9 +4,11 @@ project(mt)
 
 # Путь к модулям cmake
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
+
+set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
 # Путь для исполняемых файлов
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}/bin")
-
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Build type
 if(NOT CMAKE_BUILD_TYPE)

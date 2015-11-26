@@ -111,7 +111,7 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 /**
  * Обработчик сигналов.
  */
-void tm_signal_handler()
+void tm_signal_handler(int signum)
 {
 	TM_LOG_TRACE("transcoder_signal_handler");
 	tm_shutdown_flag = 1;

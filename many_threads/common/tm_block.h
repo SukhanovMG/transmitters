@@ -5,7 +5,7 @@
 
 typedef struct _tm_block {
 	tm_refcount refcount;
-	void *block;
+	char data[];
 } tm_block;
 
 int tm_block_init();

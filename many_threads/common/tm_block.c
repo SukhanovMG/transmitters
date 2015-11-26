@@ -7,7 +7,7 @@
 
 #include <jemalloc/jemalloc.h>
 
-#define TM_BLOCK_DEBUG 0
+#define TM_BLOCK_DEBUG 1
 
 #if !TM_BLOCK_DEBUG
 #define TM_LOG_DTRACE(...)
@@ -24,13 +24,16 @@
 
 static tm_mempool* mempool = NULL;
 static tm_allocator allocator;
+static size_t block_size;
 
 int tm_block_init()
 {
 	int result = 1;
 
+	block_size = sizeof(tm_block) + configuration.block_size;
+
 	if (configuration.use_mempool && !mempool) {
-		mempool = tm_mempool_new(configuration.block_size, 1000, 1);
+		mempool = tm_mempool_new(block_size, 1000, 1);
 		if (!mempool)
 			result = 0;
 	}
@@ -58,13 +61,11 @@ void tm_block_destroy(tm_block *block)
 {
 	if(!block)
 		return;
-	if (block->block) {
-		if (configuration.use_mempool && mempool)
-			tm_mempool_return(mempool, block->block);
-		else
-			tm_free_custom(block->block, &allocator);
-	}
-	tm_free_custom(block, &allocator);
+
+	if (configuration.use_mempool && mempool)
+		tm_mempool_return(mempool, (void *) block);
+	else
+		tm_free_custom(block, &allocator);
 
 	TM_LOG_DTRACE("Block %p destroyed", block);
 }
@@ -77,20 +78,22 @@ void tm_block_destructor(void *obj)
 tm_block *tm_block_create()
 {
 	tm_block *block = NULL;
-	block = tm_alloc_custom(sizeof(tm_block), &allocator);
+	//block = tm_alloc_custom(sizeof(tm_block), &allocator);
 
 	if (configuration.use_mempool && mempool) {
-		block->block = tm_mempool_get(mempool);
+		//block->block = tm_mempool_get(mempool);
+		block = (tm_block*) tm_mempool_get(mempool);
 	}
 	else {
-		block->block = tm_calloc_custom(configuration.block_size, &allocator);
+		//block->block = tm_calloc_custom(configuration.block_size, &allocator);
+		block = (tm_block*) tm_calloc_custom(block_size, &allocator);
 	}
-
+/*
 	if (!block->block) {
 		TM_LOG_DTRACE("Failed to create block");
 		return NULL;
 	}
-
+*/
 	tm_refcount_init((tm_refcount*)block, tm_block_destructor);
 	TM_LOG_DTRACE("Block %p created", block);
 	return block;
@@ -107,7 +110,7 @@ tm_block *tm_block_copy(tm_block *block)
 	if (!copy)
 		return NULL;
 
-	memcpy(copy->block, block->block, configuration.block_size);
+	memcpy(copy->data, block->data, configuration.block_size);
 
 	TM_LOG_DTRACE("Block %p copyed to block %p", block, copy);
 
