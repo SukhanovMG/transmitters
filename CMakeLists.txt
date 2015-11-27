@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.8)
 
-project(mt)
+project(tm)
 
 # Путь к модулям cmake
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
@@ -17,6 +17,7 @@ endif()
 
 # Поиск необходимых пакетов
 find_package(Pthread REQUIRED)
+find_package(LibEV REQUIRED)
 
 # Флаги
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99")
@@ -73,12 +74,20 @@ configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
 
 set(SRC main.c tm_thread.c)
+set(SRC_ev main.c tm_thread_events.c)
 
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
+add_executable("${CMAKE_PROJECT_NAME}_ev" ${SRC_ev} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"
-                                            #libs
                                             rt # Исправить!!!!
                                             ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+                                            )
+target_link_libraries("${CMAKE_PROJECT_NAME}_ev"
+                                            rt # Исправить!!!!
+                                            ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
+                                            ${PTHREAD_LIBRARIES}
+                                            ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+                                            ${LIBEV_LIBRARIES}
                                             )
