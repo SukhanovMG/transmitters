@@ -21,12 +21,13 @@ static int signals[] = {
 
 #define SIGNAL_COUNT (sizeof(signals) / sizeof(signal))
 
-// Пока так, потом нужно унифицировать с tm_block,
-// там номер клиента содержиться в элементе очереди
 typedef struct {
 	tm_block *block;
 	size_t client_id;
-} pipe_message_t;
+} pipe_msg_t;
+
+#define PIPE_MSG_ATOMIC_WRITE_COUNT (PIPE_BUF / sizeof(pipe_msg_t))
+#define PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES (PIPE_MSG_ATOMIC_WRITE_COUNT * sizeof(pipe_msg_t))
 
 typedef struct {
 	pthread_t thread_id;
@@ -39,7 +40,9 @@ typedef struct {
 	size_t clients_count;
 
 	double write_start_time;
-	int bytes_sent;
+	tm_block *block_to_send;
+	size_t clients_serviced;
+	size_t blocks_sent;
 	ev_io w_pipe_write;
 	ev_timer w_next_io_start;
 } tm_work_thread_t;
@@ -60,23 +63,64 @@ typedef struct {
 static tm_main_thread_t main_thread;
 
 /**
- * Коллбэк для ev_io wathcer'а, который используется для записи в пайпы (по одному на рабочий поток).
- * Крутятся на петле главного потока. Вызывается, когда главный поток может писать в пайп.
- */
-static void pipe_write_callback(EV_P_ ev_io *w, int revents)
-{
-	double bitrate;
-	ssize_t write_res;
-}
-
-/**
  * Коллбэк для ev_timer watcher'a, который используется для запуска watcher'а на запись в пайп.
  * По одному на каждый рабочий поток. Крутятся на петле главного потока. Запускаются, когда мы достигли
  * нужной скорости, чтобы подождать до конца отсчётного периода битрейта.
  */
 static void timer_for_next_io_callback(EV_P_ ev_timer *w, int revents)
 {
-	//TODO
+	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_next_io_start));
+	ev_io_start(loop, &thread->w_pipe_write);
+}
+
+/**
+ * Коллбэк для ev_io wathcer'а, который используется для записи в пайпы (по одному на рабочий поток).
+ * Крутятся на петле главного потока. Вызывается, когда главный поток может писать в пайп.
+ */
+static void pipe_write_callback(EV_P_ ev_io *w, int revents)
+{
+	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_write));
+	double bitrate;
+	ssize_t write_res;
+	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
+	size_t i;
+
+
+	if (thread->write_start_time == 0.0) {
+		thread->write_start_time = ev_now(loop);
+	}
+
+	if (thread->clients_serviced == thread->clients_count) {
+		thread->clients_serviced = 0;
+		thread->blocks_sent += 1;
+		bitrate = thread->blocks_sent * configuration.block_size * 8.0 / 1024.0 / 1.0;
+		if (bitrate >= configuration.bitrate) {
+			ev_io_stop(loop, w);
+			ev_timer_init(&thread->w_next_io_start, timer_for_next_io_callback, 1.0 - (ev_now(loop) - thread->write_start_time), 0.0);
+			ev_timer_start(loop, &thread->w_next_io_start);
+			return;
+		}
+	}
+
+	for (i = 0; i + thread->clients_serviced < thread->clients_count && i < PIPE_MSG_ATOMIC_WRITE_COUNT; i++) {
+		messages[i].block = tm_block_transfer_block(thread->block_to_send);
+		messages[i].client_id = i + thread->clients_serviced;
+	}
+
+	if (i < PIPE_MSG_ATOMIC_WRITE_COUNT) {
+		messages[i].block = NULL; // terminator (если массив сообщений не полностью забит)
+	}
+
+	write_res = write(thread->pipe_fd[1], (const void *) &messages[0], PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);
+	if (write_res < 0) {
+		TM_LOG_ERROR("Failed to write to pipe");
+		return;
+	} else if (write_res < PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES) {
+		TM_LOG_ERROR("Failed to write %zu bytes (%zd written)", PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES, write_res);
+		return;
+	}
+
+	thread->clients_serviced += i;
 }
 
 /**
@@ -99,7 +143,7 @@ static void thread_shutdown_callback(EV_P_ ev_async *w, int revents)
 
 	ev_async_stop(loop, w);
 	ev_io_stop(loop, &thread->w_pipe_read);
-
+	ev_break(loop, EVBREAK_ONE);
 }
 
 /**
