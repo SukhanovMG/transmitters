@@ -1,6 +1,7 @@
 #include "tm_thread.h"
 
 #include "tm_alloc.h"
+#include "tm_block.h"
 #include "tm_configuration.h"
 #include "tm_time.h"
 #include "tm_logging.h"
@@ -8,6 +9,7 @@
 #include <ev.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <stddef.h>
 
 static int signals[] = {
 		SIGINT,
@@ -19,6 +21,13 @@ static int signals[] = {
 
 #define SIGNAL_COUNT (sizeof(signals) / sizeof(signal))
 
+// Пока так, потом нужно унифицировать с tm_block,
+// там номер клиента содержиться в элементе очереди
+typedef struct {
+	tm_block *block;
+	size_t client_id;
+} pipe_message_t;
+
 typedef struct {
 	pthread_t thread_id;
 
@@ -26,19 +35,20 @@ typedef struct {
 	ev_async w_shutdown;
 	ev_io w_pipe_read;
 	int pipe_fd[2];
-
-	ev_io w_pipe_write;
-	ev_timer w_next_io_start;
-	ev_async w_low_bitrate;
-
 	tm_time_bitrate *bitrate;
 	size_t clients_count;
+
+	double write_start_time;
+	int bytes_sent;
+	ev_io w_pipe_write;
+	ev_timer w_next_io_start;
 } tm_work_thread_t;
 
 typedef struct {
 	struct ev_loop *loop;
 	ev_timer w_test_time;
 	ev_signal w_signals[SIGNAL_COUNT];
+	ev_async w_low_bitrate;
 
 	int low_bitrate_flag;
 
@@ -55,7 +65,8 @@ static tm_main_thread_t main_thread;
  */
 static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 {
-	//TODO
+	double bitrate;
+	ssize_t write_res;
 }
 
 /**
@@ -69,18 +80,11 @@ static void timer_for_next_io_callback(EV_P_ ev_timer *w, int revents)
 }
 
 /**
- * Коллбэк для ev_async wathcer'а, который используется для сигнализации главному потоку о низком битрейте.
- * По одному на рабочий поток. Крутятся на петле главного потока. Посылают рабочие потоки.
+ * Коллбэк для ev_io watcher'а, который используется для чтения из пайпа (по одному на рабочий поток).
+ * Крутятся на петлях рабочих потоков. Вызываются, когда можем прочитать посланные
+ * главным потоком данные.
  */
-static void low_bitrate_callback(EV_P_ ev_async *w, int revents)
-{
-	//TODO
-}
-
-/**
- * Функция рабочего потока
- */
-static void *work_thread_function(void *arg)
+static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 {
 	//TODO
 }
@@ -91,17 +95,27 @@ static void *work_thread_function(void *arg)
  */
 static void thread_shutdown_callback(EV_P_ ev_async *w, int revents)
 {
-	//TODO
+	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_shutdown));
+
+	ev_async_stop(loop, w);
+	ev_io_stop(loop, &thread->w_pipe_read);
+
 }
 
 /**
- * Коллбэк для ev_io watcher'а, который используется для чтения из пайпа (по одному на рабочий поток).
- * Крутятся на петлях рабочих потоков. Вызываются, когда можем прочитать посланные
- * главным потоком данные.
+ * Функция рабочего потока
  */
-static void pipe_read_callback(EV_P_ ev_io *w, int revents)
+static void *work_thread_function(void *arg)
 {
-	//TODO
+	tm_work_thread_t *thread = (tm_work_thread_t*)arg;
+
+	ev_async_init(&thread->w_shutdown, thread_shutdown_callback);
+	ev_async_start(thread->loop, &thread->w_shutdown);
+
+	ev_io_init(&thread->w_pipe_read, pipe_read_callback, thread->pipe_fd[0], EV_READ);
+	ev_io_start(thread->loop, &thread->w_pipe_read);
+
+	ev_run(thread->loop, 0);
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
@@ -132,11 +146,13 @@ static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
 		return status;
 	}
 
-	ev_async_init(&thread->w_shutdown, thread_shutdown_callback);
-	ev_async_start(thread->loop, &thread->w_shutdown);
+	ev_io_init(&thread->w_pipe_write, pipe_write_callback, thread->pipe_fd[1], EV_WRITE);
+	ev_io_start(main_thread.loop, &thread->w_pipe_write);
 
-	ev_io_init(&thread->w_pipe_read, pipe_read_callback, thread->pipe_fd[0], EV_READ);
-	ev_io_start(thread->loop, &thread->w_pipe_read);
+	if (pthread_create(&thread->thread_id, NULL, work_thread_function, (void*)thread) != 0) {
+		TM_LOG_ERROR("Failed to create thread.");
+		return status;
+	}
 
 	status = TMThreadStatus_SUCCESS;
 	return status;
@@ -145,25 +161,56 @@ static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
 static void tm_thread_shutdown(tm_work_thread_t *thread)
 {
 	if (thread) {
+		if (thread->loop)
+			ev_async_send(thread->loop, &thread->w_shutdown);
+		pthread_join(thread->thread_id, NULL);
+		ev_loop_destroy(thread->loop);
+		if (thread->pipe_fd[0] > 0)
+			close(thread->pipe_fd[0]);
+		if (thread->pipe_fd[1] > 0)
+			close(thread->pipe_fd[1]);
+		tm_free(thread->bitrate);
+	}
+}
 
+static void stop_main_thread_watchers()
+{
+	for (int i = 0; i < SIGNAL_COUNT; i++) {
+		ev_signal_stop(main_thread.loop, &main_thread.w_signals[i]);
+	}
+	ev_timer_stop(main_thread.loop, &main_thread.w_test_time);
+	ev_async_stop(main_thread.loop, &main_thread.w_low_bitrate);
+
+	for (int i = 0; i < main_thread.work_threads_count; i ++) {
+		ev_io_stop(main_thread.loop, &main_thread.work_threads->w_pipe_write);
+		ev_timer_stop(main_thread.loop, &main_thread.work_threads->w_next_io_start);
 	}
 }
 
 static void signal_callback(EV_P_ ev_signal *w, int revents)
 {
-	//TODO
-
-	for (int i = 0; i < SIGNAL_COUNT; i++) {
-		ev_signal_stop(main_thread.loop, &main_thread.w_signals[i]);
-	}
+	stop_main_thread_watchers();
+	ev_break(loop, EVBREAK_ONE);
 }
 
 static void test_time_callback(EV_P_ ev_timer *w, int revents)
 {
-	//TODO
+	stop_main_thread_watchers();
+	ev_break(loop, EVBREAK_ONE);
 }
 
-static TMThreadStatus tm_threads_init(int count)
+/**
+ * Коллбэк для ev_async wathcer'а, который используется для сигнализации главному потоку о низком битрейте.
+ * Крутится на петле главного потока. Посылают рабочие потоки.
+ */
+static void low_bitrate_callback(EV_P_ ev_async *w, int revents)
+{
+	main_thread.low_bitrate_flag = 1;
+	stop_main_thread_watchers();
+	ev_break(loop, EVBREAK_ONE);
+}
+
+TMThreadStatus tm_threads_init(int count)
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 	size_t clients_count;
@@ -187,6 +234,9 @@ static TMThreadStatus tm_threads_init(int count)
 		ev_signal_start(main_thread.loop, &main_thread.w_signals[i]);
 	}
 
+	ev_async_init(&main_thread.w_low_bitrate, low_bitrate_callback);
+	ev_async_start(main_thread.loop, &main_thread.w_low_bitrate);
+
 	clients_count = (size_t) configuration.clients_count / count;
 	for(int i = 0; i < count; i++) {
 		main_thread.work_threads[i].clients_count = clients_count;
@@ -205,5 +255,26 @@ static TMThreadStatus tm_threads_init(int count)
 	}
 
 	status = TMThreadStatus_SUCCESS;
+	return status;
+}
+
+TMThreadStatus tm_threads_work()
+{
+	ev_timer_start(main_thread.loop, &main_thread.w_test_time);
+	ev_run(main_thread.loop, 0);
+}
+
+TMThreadStatus tm_threads_shutdown()
+{
+	TMThreadStatus status = TMThreadStatus_SUCCESS;
+
+	for (int i = 0; i < main_thread.work_threads_count; i++) {
+		tm_thread_shutdown(&main_thread.work_threads[i]);
+	}
+	tm_free(main_thread.work_threads);
+
+	if (main_thread.low_bitrate_flag)
+		status = TMThreadStatus_ERROR;
+
 	return status;
 }
