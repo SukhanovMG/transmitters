@@ -206,6 +206,7 @@ int tm_time_sample_bitrate(tm_time_bitrate *bitrate_ctx)
 		ret = 1;
 		if (bitrate_ctx->bitrate_sample_count != 0)
 			bitrate_ctx->bitrate = tm_time_get_bitrate(cur_time, bitrate_ctx->start_time) * bitrate_ctx->bitrate_sample_count;
+		//TM_LOG_TRACE("bitrate = %lf", bitrate_ctx->bitrate);
 		bitrate_ctx->bitrate_sample_count = -1;
 	}
 	return ret;

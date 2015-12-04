@@ -7,6 +7,7 @@
 #include "tm_logging.h"
 
 #include <ev.h>
+#include <errno.h>
 #include <pthread.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -19,7 +20,7 @@ static int signals[] = {
 		SIGPWR
 };
 
-#define SIGNAL_COUNT (sizeof(signals) / sizeof(signal))
+#define SIGNAL_COUNT (sizeof(signals) / sizeof(*signals))
 
 typedef struct {
 	tm_block *block;
@@ -70,6 +71,8 @@ static tm_main_thread_t main_thread;
 static void timer_for_next_io_callback(EV_P_ ev_timer *w, int revents)
 {
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_next_io_start));
+	thread->write_start_time = 0.0;
+	thread->blocks_sent = 0;
 	ev_io_start(loop, &thread->w_pipe_write);
 }
 
@@ -83,14 +86,15 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 	double bitrate;
 	ssize_t write_res;
 	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
-	size_t i;
-
+	size_t i = 0;
 
 	if (thread->write_start_time == 0.0) {
 		thread->write_start_time = ev_now(loop);
 	}
 
 	if (thread->clients_serviced == thread->clients_count) {
+		tm_block_dispose_block(thread->block_to_send);
+		thread->block_to_send = NULL;
 		thread->clients_serviced = 0;
 		thread->blocks_sent += 1;
 		bitrate = thread->blocks_sent * configuration.block_size * 8.0 / 1024.0 / 1.0;
@@ -102,16 +106,23 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 		}
 	}
 
+	if (!thread->block_to_send)
+		thread->block_to_send = tm_block_create();
+
 	for (i = 0; i + thread->clients_serviced < thread->clients_count && i < PIPE_MSG_ATOMIC_WRITE_COUNT; i++) {
 		messages[i].block = tm_block_transfer_block(thread->block_to_send);
 		messages[i].client_id = i + thread->clients_serviced;
 	}
-
+/*
 	if (i < PIPE_MSG_ATOMIC_WRITE_COUNT) {
 		messages[i].block = NULL; // terminator (если массив сообщений не полностью забит)
 	}
+*/
+	for (size_t j = i; j < PIPE_MSG_ATOMIC_WRITE_COUNT; j++) {
+		messages[j].block = NULL;
+	}
 
-	write_res = write(thread->pipe_fd[1], (const void *) &messages[0], PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);
+	write_res = write(thread->pipe_fd[1], (const void *) messages, PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);
 	if (write_res < 0) {
 		TM_LOG_ERROR("Failed to write to pipe");
 		return;
@@ -130,7 +141,35 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
  */
 static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 {
-	//TODO
+	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_read));
+	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
+	ssize_t read_res;
+
+	read_res = read(thread->pipe_fd[0], (void *) &messages[0], PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);
+	if (read_res < 0) {
+		TM_LOG_ERROR("Failed to read from a pipe");
+		TM_LOG_TRACE("errno = %d", errno);
+		return;
+	} else if (read_res != PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES) {
+		TM_LOG_ERROR("Failed to read %zu bytes (%zd red)", PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES, read_res);
+		return;
+	}
+
+	for (int i = 0; i < PIPE_MSG_ATOMIC_WRITE_COUNT; i++) {
+		if (messages[i].block == NULL)
+			break;
+
+		tm_block_dispose_block(messages[i].block);
+		size_t client_id = messages[i].client_id;
+
+		if (tm_time_sample_bitrate(&thread->bitrate[client_id]))
+		{
+			if (thread->bitrate[client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
+			{
+				ev_async_send(main_thread.loop, &main_thread.w_low_bitrate);
+			}
+		}
+	}
 }
 
 /**
@@ -160,6 +199,7 @@ static void *work_thread_function(void *arg)
 	ev_io_start(thread->loop, &thread->w_pipe_read);
 
 	ev_run(thread->loop, 0);
+	return NULL;
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
@@ -179,6 +219,8 @@ static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
 		TM_LOG_ERROR("Failed to allocate memory for bitrate contexts.");
 		return status;
 	}
+	for(int i = 0; i < thread->clients_count; i++)
+		thread->bitrate[i].bitrate_sample_count = -1;
 
 	pipe(thread->pipe_fd);
 	fcntl(thread->pipe_fd[0], F_SETFD, O_NONBLOCK);
@@ -290,7 +332,7 @@ TMThreadStatus tm_threads_init(int count)
 	}
 
 	main_thread.work_threads_count = 0;
-	for(int i = 0; i < main_thread.work_threads_count; i++) {
+	for(int i = 0; i < count; i++) {
 		if (tm_thread_thread_create(&main_thread.work_threads[i]) != TMThreadStatus_SUCCESS) {
 			TM_LOG_ERROR("Failed to create a work thread.");
 			return status;
@@ -306,6 +348,11 @@ TMThreadStatus tm_threads_work()
 {
 	ev_timer_start(main_thread.loop, &main_thread.w_test_time);
 	ev_run(main_thread.loop, 0);
+
+	if (main_thread.low_bitrate_flag)
+		return TMThreadStatus_ERROR;
+
+	return TMThreadStatus_SUCCESS;
 }
 
 TMThreadStatus tm_threads_shutdown()
@@ -316,9 +363,7 @@ TMThreadStatus tm_threads_shutdown()
 		tm_thread_shutdown(&main_thread.work_threads[i]);
 	}
 	tm_free(main_thread.work_threads);
-
-	if (main_thread.low_bitrate_flag)
-		status = TMThreadStatus_ERROR;
+	ev_loop_destroy(main_thread.loop);
 
 	return status;
 }

@@ -137,4 +137,6 @@ void tm_block_dispose_block(tm_block *block)
 		tm_block_destroy(block);
 	else
 		tm_refcount_release((void*)block);
+
+	TM_LOG_DTRACE("Block %p disposed", block);
 }
