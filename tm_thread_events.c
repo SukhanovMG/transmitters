@@ -22,42 +22,56 @@ static int signals[] = {
 
 #define SIGNAL_COUNT (sizeof(signals) / sizeof(*signals))
 
+/**
+ * Структура сообщения, посылаемого через канал
+ */
 typedef struct {
-	tm_block *block;
-	size_t client_id;
+	tm_block *block;  // указатель на блок
+	size_t client_id; // id клиента, для которого предназначен блок
 } pipe_msg_t;
 
+// Количество сообщений, которое можно записть в канал атомарно
 #define PIPE_MSG_ATOMIC_WRITE_COUNT (PIPE_BUF / sizeof(pipe_msg_t))
+// Величина PIPE_MSG_ATOMIC_WRITE_COUNT в байтах
 #define PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES (PIPE_MSG_ATOMIC_WRITE_COUNT * sizeof(pipe_msg_t))
 
+/**
+ * Структура/контекст рабочего потока.
+ */
 typedef struct {
-	pthread_t thread_id;
+	// Общая часть
+	pthread_t thread_id;     // id рабочего потока
+	int pipe_fd[2];          // файловые дескрипторы каналов
 
-	struct ev_loop *loop;
-	ev_async w_shutdown;
-	ev_io w_pipe_read;
-	int pipe_fd[2];
-	tm_time_bitrate *bitrate;
-	size_t clients_count;
+	// Часть рабочего потока
+	struct ev_loop *loop;    // петля рабочего потока
+	ev_async w_shutdown;     // wathcer на завершение потока
+	ev_io w_pipe_read;       // wathcer на чтение из канала
+	tm_time_bitrate *bitrate;// массив контекстов для расчёта битрейта клиентов рабочего потока
+	size_t clients_count;    // количество клиентов, обслуживаемых потоком
 
-	double write_start_time;
-	tm_block *block_to_send;
-	size_t clients_serviced;
-	size_t blocks_sent;
-	ev_io w_pipe_write;
-	ev_timer w_next_io_start;
+	// Часть главного потока (относится к главному потоку, но нужно по одному экземпляру на клиента, поэтому здесь)
+	tm_block *block_to_send; // указатель на блок, который в данный момент отправляется на рабочие потоки клиентам
+	double write_start_time; // время начала отправки текущего блока на рабочие потоки клиентам
+	size_t clients_serviced; // скольким клиентам уже отправлен текущий блок
+	size_t blocks_sent;      // блоков всего отправлено
+	ev_io w_pipe_write;      // wathcer на запись в канал
+	ev_timer w_next_io_start;// wathcer на таймер до следующей активации watcher'а на запись в канал
 } tm_work_thread_t;
 
+/**
+ * Структура/контекст главного потока
+ */
 typedef struct {
-	struct ev_loop *loop;
-	ev_timer w_test_time;
-	ev_signal w_signals[SIGNAL_COUNT];
-	ev_async w_low_bitrate;
+	struct ev_loop *loop;              // петля главного потока
+	ev_timer w_test_time;              // watcher на таймер, который установлен на длительность теста
+	ev_signal w_signals[SIGNAL_COUNT]; // watcher'ы на сигналы
+	ev_async w_low_bitrate;            // watcher на сигнал о низком битрейте от рабочих потоков
 
-	int low_bitrate_flag;
+	int low_bitrate_flag;              // флаг, говорящий о том, что был низкий битрейт
 
-	tm_work_thread_t *work_threads;
-	size_t work_threads_count;
+	tm_work_thread_t *work_threads;    // контексты рабочих потоков
+	size_t work_threads_count;         // количество рабочих потоков
 
 } tm_main_thread_t;
 
@@ -113,13 +127,9 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 		messages[i].block = tm_block_transfer_block(thread->block_to_send);
 		messages[i].client_id = i + thread->clients_serviced;
 	}
-/*
+
 	if (i < PIPE_MSG_ATOMIC_WRITE_COUNT) {
 		messages[i].block = NULL; // terminator (если массив сообщений не полностью забит)
-	}
-*/
-	for (size_t j = i; j < PIPE_MSG_ATOMIC_WRITE_COUNT; j++) {
-		messages[j].block = NULL;
 	}
 
 	write_res = write(thread->pipe_fd[1], (const void *) messages, PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);

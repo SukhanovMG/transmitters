@@ -78,22 +78,13 @@ void tm_block_destructor(void *obj)
 tm_block *tm_block_create()
 {
 	tm_block *block = NULL;
-	//block = tm_alloc_custom(sizeof(tm_block), &allocator);
 
 	if (configuration.use_mempool && mempool) {
-		//block->block = tm_mempool_get(mempool);
 		block = (tm_block*) tm_mempool_get(mempool);
 	}
 	else {
-		//block->block = tm_calloc_custom(configuration.block_size, &allocator);
 		block = (tm_block*) tm_calloc_custom(block_size, &allocator);
 	}
-/*
-	if (!block->block) {
-		TM_LOG_DTRACE("Failed to create block");
-		return NULL;
-	}
-*/
 	tm_refcount_init((tm_refcount*)block, tm_block_destructor);
 	TM_LOG_DTRACE("Block %p created", block);
 	return block;
