@@ -27,13 +27,6 @@ typedef struct _tm_time16 {
 	uint16_t fraction; /*!< Fraction */
 } tm_time16_t;
 
-typedef struct _tm_time_bitrate {
-	double bitrate;
-	int bitrate_sample_count;
-	double start_time;
-} tm_time_bitrate;
-
-
 struct timeval *tm_time_ntp_to_timeval(struct timeval *ut, tm_time_ntp_t *ntp);
 tm_time_ntp_t *tm_time_timeval_to_ntp(tm_time_ntp_t *ntp, struct timeval *ut);
 
@@ -48,8 +41,5 @@ double tm_time_time16_to_double(tm_time16_t *t16);
 tm_time16_t *tm_time_double_to_time16(tm_time16_t *t16, double tm);
 double tm_time_double_to_double1970(double tm);
 void tm_time_double_to_string_with_days(char *str, size_t strsize, double tim);
-
-double tm_time_get_bitrate(double t2, double t1);
-int tm_time_sample_bitrate(tm_time_bitrate *bitrate_ctx);
 
 #endif /* TM_TIME_H_ */

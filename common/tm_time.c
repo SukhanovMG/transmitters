@@ -14,7 +14,6 @@
 #include <time.h>
 #include <limits.h>
 #include <stdio.h>
-#include <math.h>
 
 #include "tm_logging.h"
 #include "tm_configuration.h"
@@ -177,37 +176,4 @@ void tm_time_double_to_string_with_days(char *str, size_t strsize, double tim)
 	int sutki = tm % 86400;
 	snprintf(str, strsize, "%d,%02d:%02d:%02d.%06d", (int)(tm / 86400), sutki / 3600,  (sutki % 3600) / 60, sutki % 60,
 			(int)((tim - (double)tm) * 10000000));
-}
-
-double tm_time_get_bitrate(double t2, double t1)
-{
-	double diff = fabs(t2 - t1);
-	return (double) configuration.block_size * 8.0 / (diff == 0? 1e-9 : diff) / 1024.0;
-}
-
-int tm_time_sample_bitrate(tm_time_bitrate *bitrate_ctx)
-{
-	int ret = 0;
-	double cur_time = tm_time_get_current_ntime();
-
-	if (bitrate_ctx->bitrate_sample_count == -1)
-	{
-		bitrate_ctx->bitrate = 0.0;
-		bitrate_ctx->start_time = cur_time;
-		bitrate_ctx->bitrate_sample_count = 0;
-	}
-	else
-	{
-		bitrate_ctx->bitrate_sample_count++;
-	}
-
-	if (cur_time - bitrate_ctx->start_time >= configuration.avg_bitrate_calc_time)
-	{
-		ret = 1;
-		if (bitrate_ctx->bitrate_sample_count != 0)
-			bitrate_ctx->bitrate = tm_time_get_bitrate(cur_time, bitrate_ctx->start_time) * bitrate_ctx->bitrate_sample_count;
-		//TM_LOG_TRACE("bitrate = %lf", bitrate_ctx->bitrate);
-		bitrate_ctx->bitrate_sample_count = -1;
-	}
-	return ret;
 }
