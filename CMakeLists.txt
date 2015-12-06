@@ -73,21 +73,14 @@ configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool_jemal
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
 
-set(SRC main.c tm_thread.c)
-set(SRC_ev main.c tm_thread_events.c)
+set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c)
 
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
-add_executable("${CMAKE_PROJECT_NAME}_ev" ${SRC_ev} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"
-                                            rt # Исправить!!!!
-                                            ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
-                                            ${PTHREAD_LIBRARIES}
-                                            ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
-                                            )
-target_link_libraries("${CMAKE_PROJECT_NAME}_ev"
                                             rt # Исправить!!!!
                                             ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
                                             ${LIBEV_LIBRARIES}
                                             )
+

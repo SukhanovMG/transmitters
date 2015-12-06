@@ -1,4 +1,4 @@
-#include "tm_thread.h"
+#include "tm_thread_events.h"
 
 #include "tm_alloc.h"
 #include "tm_block.h"
@@ -306,7 +306,7 @@ static void low_bitrate_callback(EV_P_ ev_async *w, int revents)
 	ev_break(loop, EVBREAK_ONE);
 }
 
-TMThreadStatus tm_threads_init(int count)
+TMThreadStatus tm_threads_init_events(int count)
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 	size_t clients_count;
@@ -354,18 +354,20 @@ TMThreadStatus tm_threads_init(int count)
 	return status;
 }
 
-TMThreadStatus tm_threads_work()
+TMThreadStatus tm_threads_work_events()
 {
 	ev_timer_start(main_thread.loop, &main_thread.w_test_time);
 	ev_run(main_thread.loop, 0);
 
-	if (main_thread.low_bitrate_flag)
+	if (main_thread.low_bitrate_flag) {
+		TM_LOG_TRACE("Low bitrate");
 		return TMThreadStatus_ERROR;
+	}
 
 	return TMThreadStatus_SUCCESS;
 }
 
-TMThreadStatus tm_threads_shutdown()
+TMThreadStatus tm_threads_shutdown_events()
 {
 	TMThreadStatus status = TMThreadStatus_SUCCESS;
 

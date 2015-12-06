@@ -22,3 +22,6 @@ CopyBlockOnTransfer = @FOR_CONFIG_COPY_BLOCK_ON_TRANSFER@
 
 # Флаг использования jemalloc
 UseJeMalloc = @FOR_CONFIG_USE_JEMALLOC@
+
+# Флаг использования libev
+UseLibev = true

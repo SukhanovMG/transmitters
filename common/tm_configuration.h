@@ -32,6 +32,7 @@ typedef struct _read_config_parameters_t {
 	int use_mempool;			/*!< Флаг использования пула */
 	int copy_block_on_transfer;	/*!< Флаг копирования блока при передаче от главного потока к рабочему */
 	int use_jemalloc;			/*!< Флаг использования jemalloc */
+	int use_libev;
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */
