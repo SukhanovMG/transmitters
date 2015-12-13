@@ -3,7 +3,6 @@
 #include "tm_alloc.h"
 #include "tm_block.h"
 #include "tm_configuration.h"
-#include "tm_time.h"
 #include "tm_logging.h"
 
 #include <ev.h>
@@ -36,6 +35,12 @@ typedef struct {
 // Величина PIPE_MSG_ATOMIC_WRITE_COUNT в байтах
 #define PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES (PIPE_MSG_ATOMIC_WRITE_COUNT * sizeof(pipe_msg_t))
 
+// Размер массива указателей для возврата на главный поток
+#define POINTERS_TO_SEND_BACK_ARRAY_SIZE (1024 * 1024)
+
+#define PIPE_POINTERS_ATOMIC_WRITE_COUNT (PIPE_BUF / sizeof(tm_block*))
+#define PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES (PIPE_POINTERS_ATOMIC_WRITE_COUNT * sizeof(tm_block*))
+
 typedef struct _tm_time_bitrate {
 	double bitrate;
 	int bitrate_sample_count;
@@ -48,7 +53,8 @@ typedef struct _tm_time_bitrate {
 typedef struct {
 	// Общая часть
 	pthread_t thread_id;     // id рабочего потока
-	int pipe_fd[2];          // файловые дескрипторы каналов
+	int pipe_fd[2];          // файловые дескрипторы каналов для передачи указателей
+	int pipe_fd_return[2];   // для возврата указателей
 
 	// Часть рабочего потока
 	struct ev_loop *loop;    // петля рабочего потока
@@ -56,6 +62,9 @@ typedef struct {
 	ev_io w_pipe_read;       // wathcer на чтение из канала
 	tm_time_bitrate *bitrate;// массив контекстов для расчёта битрейта клиентов рабочего потока
 	size_t clients_count;    // количество клиентов, обслуживаемых потоком
+	tm_block **pointers_to_send_back;
+	int pointers_to_send_back_count;
+	ev_io w_pipe_ret_ptrs_write;
 
 	// Часть главного потока (относится к главному потоку, но нужно по одному экземпляру на клиента, поэтому здесь)
 	tm_block *block_to_send; // указатель на блок, который в данный момент отправляется на рабочие потоки клиентам
@@ -64,6 +73,7 @@ typedef struct {
 	size_t blocks_sent;      // блоков всего отправлено
 	ev_io w_pipe_write;      // wathcer на запись в канал
 	ev_timer w_next_io_start;// wathcer на таймер до следующей активации watcher'а на запись в канал
+	ev_io w_pipe_ret_ptrs_read;
 } tm_work_thread_t;
 
 /**
@@ -140,7 +150,7 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_write));
 	double bitrate;
 	ssize_t write_res;
-	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
+	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT] = {{NULL, 0}};
 	size_t i = 0;
 
 	if (thread->write_start_time == 0.0) {
@@ -153,7 +163,11 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 		thread->clients_serviced = 0;
 		thread->blocks_sent += 1;
 		bitrate = thread->blocks_sent * configuration.block_size * 8.0 / 1024.0 / 1.0;
-		if (bitrate >= configuration.bitrate) {
+		/*
+		if ((1.0 - (ev_now(loop) - thread->write_start_time)) < 0)
+			TM_LOG_ERROR("=============");
+		*/
+		if ((ev_now(loop) - thread->write_start_time) >= 1.0 || bitrate >= configuration.bitrate) {
 			ev_io_stop(loop, w);
 			ev_timer_init(&thread->w_next_io_start, timer_for_next_io_callback, 1.0 - (ev_now(loop) - thread->write_start_time), 0.0);
 			ev_timer_start(loop, &thread->w_next_io_start);
@@ -193,7 +207,7 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 {
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_read));
-	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
+	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT] = {{NULL, 0}};
 	ssize_t read_res;
 
 	read_res = read(thread->pipe_fd[0], (void *) &messages[0], PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);
@@ -210,10 +224,19 @@ static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 		if (messages[i].block == NULL)
 			break;
 
-		tm_block_dispose_block(messages[i].block);
+		if (configuration.return_pointers_through_pipes) {
+		//if (0) {
+			if (thread->pointers_to_send_back_count == POINTERS_TO_SEND_BACK_ARRAY_SIZE) {
+				TM_LOG_ERROR("Pointers to send back overflow");
+				return;
+			}
+			thread->pointers_to_send_back[thread->pointers_to_send_back_count] = messages[i].block;
+			thread->pointers_to_send_back_count++;
+		} else {
+			tm_block_dispose_block(messages[i].block);
+		}
 		size_t client_id = messages[i].client_id;
 
-		if (client_id )
 		if (sample_bitrate(&thread->bitrate[client_id], loop))
 		{
 			if (thread->bitrate[client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
@@ -221,6 +244,58 @@ static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 				ev_async_send(main_thread.loop, &main_thread.w_low_bitrate);
 			}
 		}
+	}
+}
+
+static void return_ptrs_write_callback(EV_P_ ev_io *w, int revents)
+{
+	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_ret_ptrs_write));
+	tm_block *pointers_to_send[PIPE_POINTERS_ATOMIC_WRITE_COUNT] = {NULL};
+	if (thread->pointers_to_send_back_count > 0) {
+		ssize_t write_res;
+		int i = 0;
+		while(i < PIPE_POINTERS_ATOMIC_WRITE_COUNT && thread->pointers_to_send_back_count > 0) {
+			pointers_to_send[i] = thread->pointers_to_send_back[thread->pointers_to_send_back_count - 1];
+			thread->pointers_to_send_back_count--;
+			i++;
+		}
+		if (i < PIPE_POINTERS_ATOMIC_WRITE_COUNT) {
+			pointers_to_send[i] = NULL;
+		}
+
+		write_res = write(thread->pipe_fd_return[1], (const void *) pointers_to_send, PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES);
+		if (write_res < 0) {
+			TM_LOG_ERROR("Failed to write to pipe");
+			return;
+		} else if (write_res < PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES) {
+			TM_LOG_ERROR("Failed to write %zu bytes (%zd written)", PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES, write_res);
+			return;
+		}
+	}
+}
+
+static void return_ptrs_read_callback(EV_P_ ev_io *w, int revents)
+{
+	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_ret_ptrs_read));
+	tm_block *pointers[PIPE_POINTERS_ATOMIC_WRITE_COUNT] = {NULL};
+	ssize_t read_res;
+
+	read_res = read(thread->pipe_fd_return[0], (void *) pointers, PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES);
+	if (read_res < 0) {
+		TM_LOG_ERROR("Failed to read from a pipe");
+		TM_LOG_TRACE("errno = %d", errno);
+		return;
+	} else if (read_res != PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES) {
+		TM_LOG_ERROR("Failed to read %zu bytes (%zd red)", PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES, read_res);
+		return;
+	}
+
+	for (int i = 0; i < PIPE_POINTERS_ATOMIC_WRITE_COUNT; i++) {
+		if (pointers[i] == NULL) {
+			break;
+		}
+
+		tm_block_dispose_block(pointers[i]);
 	}
 }
 
@@ -234,6 +309,8 @@ static void thread_shutdown_callback(EV_P_ ev_async *w, int revents)
 
 	ev_async_stop(loop, w);
 	ev_io_stop(loop, &thread->w_pipe_read);
+	if (configuration.return_pointers_through_pipes)
+		ev_io_stop(loop, &thread->w_pipe_ret_ptrs_write);
 	ev_break(loop, EVBREAK_ONE);
 }
 
@@ -249,6 +326,11 @@ static void *work_thread_function(void *arg)
 
 	ev_io_init(&thread->w_pipe_read, pipe_read_callback, thread->pipe_fd[0], EV_READ);
 	ev_io_start(thread->loop, &thread->w_pipe_read);
+
+	if (configuration.return_pointers_through_pipes) {
+		ev_io_init(&thread->w_pipe_ret_ptrs_write, return_ptrs_write_callback, thread->pipe_fd_return[1], EV_WRITE);
+		ev_io_start(thread->loop, &thread->w_pipe_ret_ptrs_write);
+	}
 
 	ev_run(thread->loop, 0);
 	return NULL;
@@ -271,12 +353,27 @@ static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
 		TM_LOG_ERROR("Failed to allocate memory for bitrate contexts.");
 		return status;
 	}
+
+	if (configuration.return_pointers_through_pipes) {
+		thread->pointers_to_send_back = tm_alloc(POINTERS_TO_SEND_BACK_ARRAY_SIZE * sizeof(tm_block *));
+		if (!thread->pointers_to_send_back) {
+			TM_LOG_ERROR("Failed to allocate memory for pointers to send back array.");
+			return status;
+		}
+	}
+
 	for(int i = 0; i < thread->clients_count; i++)
 		thread->bitrate[i].bitrate_sample_count = -1;
 
 	pipe(thread->pipe_fd);
 	fcntl(thread->pipe_fd[0], F_SETFD, O_NONBLOCK);
 	fcntl(thread->pipe_fd[1], F_SETFD, O_NONBLOCK);
+
+	if (configuration.return_pointers_through_pipes) {
+		pipe(thread->pipe_fd_return);
+		fcntl(thread->pipe_fd_return[0], F_SETFD, O_NONBLOCK);
+		fcntl(thread->pipe_fd_return[1], F_SETFD, O_NONBLOCK);
+	}
 
 	thread->loop = ev_loop_new(0);
 	if (!thread->loop) {
@@ -286,6 +383,11 @@ static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
 
 	ev_io_init(&thread->w_pipe_write, pipe_write_callback, thread->pipe_fd[1], EV_WRITE);
 	ev_io_start(main_thread.loop, &thread->w_pipe_write);
+
+	if (configuration.return_pointers_through_pipes) {
+		ev_io_init(&thread->w_pipe_ret_ptrs_read, return_ptrs_read_callback, thread->pipe_fd_return[0], EV_READ);
+		ev_io_start(main_thread.loop, &thread->w_pipe_ret_ptrs_read);
+	}
 
 	if (pthread_create(&thread->thread_id, NULL, work_thread_function, (void*)thread) != 0) {
 		TM_LOG_ERROR("Failed to create thread.");
@@ -307,6 +409,11 @@ static void tm_thread_shutdown(tm_work_thread_t *thread)
 			close(thread->pipe_fd[0]);
 		if (thread->pipe_fd[1] > 0)
 			close(thread->pipe_fd[1]);
+		if (thread->pipe_fd_return[0] > 0)
+			close(thread->pipe_fd_return[0]);
+		if (thread->pipe_fd_return[1] > 0)
+			close(thread->pipe_fd_return[1]);
+		tm_free(thread->pointers_to_send_back);
 		tm_free(thread->bitrate);
 	}
 }
@@ -320,8 +427,11 @@ static void stop_main_thread_watchers()
 	ev_async_stop(main_thread.loop, &main_thread.w_low_bitrate);
 
 	for (int i = 0; i < main_thread.work_threads_count; i ++) {
-		ev_io_stop(main_thread.loop, &main_thread.work_threads->w_pipe_write);
-		ev_timer_stop(main_thread.loop, &main_thread.work_threads->w_next_io_start);
+		ev_io_stop(main_thread.loop, &main_thread.work_threads[i].w_pipe_write);
+		if (configuration.return_pointers_through_pipes) {
+			ev_io_stop(main_thread.loop, &main_thread.work_threads[i].w_pipe_ret_ptrs_read);
+		}
+		ev_timer_stop(main_thread.loop, &main_thread.work_threads[i].w_next_io_start);
 	}
 }
 
@@ -360,7 +470,7 @@ TMThreadStatus tm_threads_init_events(int count)
 
 	main_thread.work_threads = tm_calloc(count * sizeof(tm_work_thread_t));
 	if (!main_thread.work_threads) {
-		TM_LOG_ERROR("Failed to allocate memory.");
+		TM_LOG_ERROR("Failed to allocate memory for thread contexts.");
 		return status;
 	}
 

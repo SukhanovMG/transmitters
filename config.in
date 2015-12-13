@@ -25,3 +25,4 @@ UseJeMalloc = @FOR_CONFIG_USE_JEMALLOC@
 
 # Флаг использования libev
 UseLibev = true
+ReturnPointersThroughPipes = true
