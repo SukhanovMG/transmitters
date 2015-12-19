@@ -25,15 +25,16 @@
 static tm_mempool* mempool = NULL;
 static tm_allocator allocator;
 static size_t block_size;
+static int thread_safe = 1;
 
 int tm_block_init()
 {
 	int result = 1;
 
 	block_size = sizeof(tm_block) + configuration.block_size;
+	thread_safe = !(configuration.use_libev && configuration.return_pointers_through_pipes);
 
 	if (configuration.use_mempool && !mempool) {
-		int thread_safe = !(configuration.use_libev && configuration.return_pointers_through_pipes);
 		mempool = tm_mempool_new(block_size, 1000, thread_safe);
 		if (!mempool)
 			result = 0;
@@ -58,7 +59,7 @@ void tm_block_fin()
 	}
 }
 
-void tm_block_destroy(tm_block *block)
+inline void tm_block_destroy(tm_block *block)
 {
 	if(!block)
 		return;
@@ -109,7 +110,7 @@ tm_block *tm_block_copy(tm_block *block)
 	return copy;
 }
 
-tm_block *tm_block_transfer_block(tm_block *block)
+inline tm_block *tm_block_transfer_block(tm_block *block)
 {
 	if (!block)
 		return NULL;
@@ -117,10 +118,10 @@ tm_block *tm_block_transfer_block(tm_block *block)
 	if (configuration.copy_block_on_transfer)
 		return tm_block_copy(block);
 	else
-		return (tm_block*)tm_refcount_retain((void*)block);
+		return (tm_block*)tm_refcount_retain((void*)block, thread_safe);
 }
 
-void tm_block_dispose_block(tm_block *block)
+inline void tm_block_dispose_block(tm_block *block)
 {
 	if (!block)
 		return;
@@ -128,7 +129,7 @@ void tm_block_dispose_block(tm_block *block)
 	if (configuration.copy_block_on_transfer)
 		tm_block_destroy(block);
 	else
-		tm_refcount_release((void*)block);
+		tm_refcount_release((void*)block, thread_safe);
 
 	TM_LOG_DTRACE("Block %p disposed", block);
 }

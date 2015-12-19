@@ -12,15 +12,20 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # Build type
 if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release." FORCE)
+	set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo." FORCE)
 endif()
 
 # Поиск необходимых пакетов
 find_package(Pthread REQUIRED)
 find_package(LibEV REQUIRED)
+find_package(Gperftools)
+
+if (GPERFTOOLS_FOUND)
+	set(PERFORMANCE_LIBS ${GPERFTOOLS_LIBRARIES})
+endif (GPERFTOOLS_FOUND)
 
 # Флаги
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -std=gnu99")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fno-strict-aliasing -std=gnu99")
 
 
 message(STATUS "~~~~~~~~~~~~~~~~~~ BUILD TYPE '${CMAKE_BUILD_TYPE}' ~~~~~~~~~~~~~~~~~~")
@@ -82,5 +87,6 @@ target_link_libraries("${CMAKE_PROJECT_NAME}"
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
                                             ${LIBEV_LIBRARIES}
+											${PERFORMANCE_LIBS}
                                             )
 

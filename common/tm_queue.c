@@ -111,7 +111,7 @@ int tm_queue_destroy(tm_queue_ctx *q)
 	while (q->count > 0)
 	{
 		tm_queue_elem_ctx *elem = tm_queue_pop_front(q);
-		tm_refcount_release((void *) elem->block);
+		tm_refcount_release((void *) elem->block, 1);
 		tm_free(elem);
 	}
 

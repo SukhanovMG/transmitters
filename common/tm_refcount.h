@@ -13,16 +13,16 @@ typedef struct _tm_refcount {
 void tm_refcount_init(tm_refcount *, tm_refcount_destructor);
 
 #if TM_REFCOUNT_DEBUG
-#define tm_refcount_retain(obj) _tm_refcount_retain_d(obj, __LINE__, __FILE__, __FUNCTION__)
-#define tm_refcount_release(obj) _tm_refcount_release_d(obj, __LINE__, __FILE__, __FUNCTION__)
+#define tm_refcount_retain(obj, thread_safe) _tm_refcount_retain_d(obj, thread_safe, __LINE__, __FILE__, __FUNCTION__)
+#define tm_refcount_release(obj, thread_safe) _tm_refcount_release_d(obj, thread_safe, __LINE__, __FILE__, __FUNCTION__)
 #else
-#define tm_refcount_retain(obj) _tm_refcount_retain(obj)
-#define tm_refcount_release(obj) _tm_refcount_release(obj)
+#define tm_refcount_retain(obj, thread_safe) _tm_refcount_retain(obj, thread_safe)
+#define tm_refcount_release(obj, thread_safe) _tm_refcount_release(obj, thread_safe)
 #endif
 
-void *_tm_refcount_retain_d(void *, int, char*, const char*);
-void _tm_refcount_release_d(void *, int, char*, const char*);
-void *_tm_refcount_retain(void *);
-void _tm_refcount_release(void *);
+void *_tm_refcount_retain_d(void *, int, int, char*, const char*);
+void _tm_refcount_release_d(void *, int, int, char*, const char*);
+void *_tm_refcount_retain(void *, int);
+void _tm_refcount_release(void *, int);
 
 #endif /* TM_REFCOUNT_H */

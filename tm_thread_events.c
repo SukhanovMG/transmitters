@@ -95,7 +95,7 @@ typedef struct {
 static tm_main_thread_t main_thread;
 
 
-static double calc_bitrate(double t2, double t1, int samples)
+inline static double calc_bitrate(double t2, double t1, int samples)
 {
 	double diff = fabs(t2 - t1);
 	return (double) configuration.block_size * 8.0 * samples / (diff == 0? 1e-9 : diff) / 1024.0;
@@ -136,8 +136,6 @@ static int sample_bitrate(tm_time_bitrate *bitrate_ctx, struct ev_loop *loop)
 static void timer_for_next_io_callback(EV_P_ ev_timer *w, int revents)
 {
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_next_io_start));
-	thread->write_start_time = 0.0;
-	thread->blocks_sent = 0;
 	ev_io_start(loop, &thread->w_pipe_write);
 }
 
@@ -148,28 +146,34 @@ static void timer_for_next_io_callback(EV_P_ ev_timer *w, int revents)
 static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 {
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_write));
-	double bitrate;
 	ssize_t write_res;
-	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT] = {{NULL, 0}};
-	size_t i = 0;
+	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
+	size_t i;
 
 	if (thread->write_start_time == 0.0) {
 		thread->write_start_time = ev_now(loop);
 	}
 
 	if (thread->clients_serviced == thread->clients_count) {
+		double bitrate;
+		double elapsed_time_from_write_start;
+
 		tm_block_dispose_block(thread->block_to_send);
 		thread->block_to_send = NULL;
 		thread->clients_serviced = 0;
 		thread->blocks_sent += 1;
 		bitrate = thread->blocks_sent * configuration.block_size * 8.0 / 1024.0 / 1.0;
-		/*
-		if ((1.0 - (ev_now(loop) - thread->write_start_time)) < 0)
-			TM_LOG_ERROR("=============");
-		*/
-		if ((ev_now(loop) - thread->write_start_time) >= 1.0 || bitrate >= configuration.bitrate) {
+		elapsed_time_from_write_start = ev_now(loop) - thread->write_start_time;
+		if (elapsed_time_from_write_start >= 1.0) {
+			thread->write_start_time = 0.0;
+			thread->blocks_sent = 0;
+			return;
+		}
+		if (bitrate >= configuration.bitrate) {
+			thread->write_start_time = 0.0;
+			thread->blocks_sent = 0;
 			ev_io_stop(loop, w);
-			ev_timer_init(&thread->w_next_io_start, timer_for_next_io_callback, 1.0 - (ev_now(loop) - thread->write_start_time), 0.0);
+			ev_timer_init(&thread->w_next_io_start, timer_for_next_io_callback, 1.0 - elapsed_time_from_write_start, 0.0);
 			ev_timer_start(loop, &thread->w_next_io_start);
 			return;
 		}
@@ -178,9 +182,11 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 	if (!thread->block_to_send)
 		thread->block_to_send = tm_block_create();
 
-	for (i = 0; i + thread->clients_serviced < thread->clients_count && i < PIPE_MSG_ATOMIC_WRITE_COUNT; i++) {
+	size_t clients_serviced = thread->clients_serviced;
+	size_t clients_count = thread->clients_count;
+	for (i = 0; i + clients_serviced < clients_count && i < PIPE_MSG_ATOMIC_WRITE_COUNT; i++) {
 		messages[i].block = tm_block_transfer_block(thread->block_to_send);
-		messages[i].client_id = i + thread->clients_serviced;
+		messages[i].client_id = i + clients_serviced;
 	}
 
 	if (i < PIPE_MSG_ATOMIC_WRITE_COUNT) {
@@ -207,7 +213,7 @@ static void pipe_write_callback(EV_P_ ev_io *w, int revents)
 static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 {
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_read));
-	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT] = {{NULL, 0}};
+	pipe_msg_t messages[PIPE_MSG_ATOMIC_WRITE_COUNT];
 	ssize_t read_res;
 
 	read_res = read(thread->pipe_fd[0], (void *) &messages[0], PIPE_MSG_ATOMIC_WRITE_COUNT_BYTES);
@@ -250,18 +256,20 @@ static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 static void return_ptrs_write_callback(EV_P_ ev_io *w, int revents)
 {
 	tm_work_thread_t *thread = (tm_work_thread_t*) ((char*)w - offsetof(tm_work_thread_t, w_pipe_ret_ptrs_write));
-	tm_block *pointers_to_send[PIPE_POINTERS_ATOMIC_WRITE_COUNT] = {NULL};
-	if (thread->pointers_to_send_back_count > 0) {
+	tm_block *pointers_to_send[PIPE_POINTERS_ATOMIC_WRITE_COUNT];
+	if (thread->pointers_to_send_back_count > PIPE_POINTERS_ATOMIC_WRITE_COUNT) {
+	//if (thread->pointers_to_send_back_count > 0) {
 		ssize_t write_res;
 		int i = 0;
-		while(i < PIPE_POINTERS_ATOMIC_WRITE_COUNT && thread->pointers_to_send_back_count > 0) {
-			pointers_to_send[i] = thread->pointers_to_send_back[thread->pointers_to_send_back_count - 1];
-			thread->pointers_to_send_back_count--;
+		int pointers_to_send_back_count = thread->pointers_to_send_back_count;
+		while(i < PIPE_POINTERS_ATOMIC_WRITE_COUNT && pointers_to_send_back_count > 0) {
+			pointers_to_send[i] = thread->pointers_to_send_back[pointers_to_send_back_count - 1];
+			pointers_to_send_back_count--;
 			i++;
 		}
-		if (i < PIPE_POINTERS_ATOMIC_WRITE_COUNT) {
+		thread->pointers_to_send_back_count = pointers_to_send_back_count;
+		if (i < PIPE_POINTERS_ATOMIC_WRITE_COUNT)
 			pointers_to_send[i] = NULL;
-		}
 
 		write_res = write(thread->pipe_fd_return[1], (const void *) pointers_to_send, PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES);
 		if (write_res < 0) {
@@ -365,12 +373,18 @@ static TMThreadStatus tm_thread_thread_create(tm_work_thread_t *thread)
 	for(int i = 0; i < thread->clients_count; i++)
 		thread->bitrate[i].bitrate_sample_count = -1;
 
-	pipe(thread->pipe_fd);
+	if (pipe(thread->pipe_fd) == -1) {
+		TM_LOG_ERROR("Failed to create a pipe.");
+		return status;
+	}
 	fcntl(thread->pipe_fd[0], F_SETFD, O_NONBLOCK);
 	fcntl(thread->pipe_fd[1], F_SETFD, O_NONBLOCK);
 
 	if (configuration.return_pointers_through_pipes) {
-		pipe(thread->pipe_fd_return);
+		if (pipe(thread->pipe_fd_return) == -1) {
+			TM_LOG_ERROR("Failed to create a pipe.");
+			return status;
+		}
 		fcntl(thread->pipe_fd_return[0], F_SETFD, O_NONBLOCK);
 		fcntl(thread->pipe_fd_return[1], F_SETFD, O_NONBLOCK);
 	}
