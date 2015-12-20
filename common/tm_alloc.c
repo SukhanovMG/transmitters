@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "tm_alloc.h"
-#include "tm_compat.h"
 #include "tm_logging.h"
 
 
@@ -76,12 +75,14 @@ static tm_alloc_t tm_realloc_inner(tm_alloc_t memptr, size_t new_size)
 static char *tm_strdup_inner(const char *string, int length)
 {
 	char *str = NULL;
-	size_t len = length < 0 ? tm_strlen(string) : (size_t)length;
 
-	if (len && string) {
-		str = (char*)tm_calloc_inner(len + 1, NULL);
-		if (str)
-			memcpy(str, string, len);
+	if (string) {
+		size_t len = length < 0 ? strlen(string) : (size_t)length;
+		if (len) {
+			str = (char *) tm_calloc_inner(len + 1, NULL);
+			if (str)
+				memcpy(str, string, len);
+		}
 	}
 
 	return str;

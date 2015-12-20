@@ -36,7 +36,6 @@ add_custom_command(
 
 add_library(COMMON_MODULES OBJECT
     tm_alloc.c
-    tm_compat.c
     tm_configuration.c
     tm_queue.c
     tm_refcount.c

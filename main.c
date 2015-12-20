@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 #include <getopt.h>
 #include "tm_configuration.h"
-#include "tm_compat.h"
 #include "tm_alloc.h"
 #include "tm_thread.h"
 #include "tm_logging.h"
@@ -69,7 +68,7 @@ static int main_args_handle(int argc, char *argv[])
 	while ( ( res = getopt_long(argc, argv, short_options, long_options, &option_index) ) != -1 ) {
 		switch(res){
 			case 'c':
-				tm_strlcpy(main_conf_file, optarg, sizeof(main_conf_file));
+				strncpy(main_conf_file, optarg, sizeof(main_conf_file));
 				break;
 			case 'C':
 				clients_count = atoi(optarg);

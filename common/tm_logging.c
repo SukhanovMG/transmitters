@@ -15,8 +15,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <string.h>
 
-#include "tm_compat.h"
 #include "tm_time.h"
 
 #include "tm_logging.h"
@@ -96,7 +96,7 @@ void _tm_log_string(const char *file, const char *line, const char *function, TM
 	tm_time_double_to_timeval(&tv, tm_time_get_current_time());
 	localtime_r(&tv.tv_sec, &tm);
 	strftime(ts, sizeof(ts), "%02d.%02m.%y-%02H:%02M:%02S", &tm);
-	snprintf(ts + tm_strlen(ts), sizeof(ts) - tm_strlen(ts), ".%06d|", (int)tv.tv_usec);
+	snprintf(ts + strlen(ts), sizeof(ts) - strlen(ts), ".%06d|", (int)tv.tv_usec);
 
 	va_start(vl, format);
 	switch(facility) {
