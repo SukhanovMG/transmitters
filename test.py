@@ -43,43 +43,37 @@ def run_test(clients_count):
 		print "===clients_count = " + str(clients_count) + " failed==="
 	return (test_res == 0)
 
-#Начинаем с одного клиента
-clients_count = start_clients_count
-"""
-	Удваивая количество клиентов после успешного теста,
-	ищем количество клиентов, на котором тест проваливается.
-"""
+def get_precision(num):
+	result = num * 0.005
+	if result < 1:
+		result = 1
+	return result
+
+stop_test = False
+maximum_clients = 0
+a = start_clients_count
+b = start_clients_count
+
 while True:
-	if not run_test(clients_count):
+	if not run_test(b):
 		break
-	clients_count *= 2
+	a = b
+	b *= 2
 
-# Если это количество 1 или 2, то оно и является максимальным
-stop_condition = False
-if clients_count == 1 or clients_count == 2:
-	stop_condition = True
+if a == b:
+	if a == 1:
+		stop_test = True
+	else:
+		a = 1
 
-# Если больше, то будем искать более точное значение методом биссекции
-# a - последнее значение, на котором тест пройден (делим на 2, т.к. каждую успешную итерацию умножаем на 2)
-a = clients_count / 2
-# b - значение, на котором тест провалился, т.е. последнее значение количества клиентов
-b = clients_count
-# серидина отрезка
-middle = (a + b) / 2
-while not stop_condition:
-	# Определяем с какой стороны сокращаем отрезок
+while not stop_test:
+	middle = (a + b) / 2
 	if run_test(middle):
 		a = middle
 	else:
 		b = middle
-	
-	middle = (a + b) / 2
-	if b - a <= 1:
-		stop_condition = True
 
-	# Если очередная серидина будет нецелой, значит конец
-	#if ( (a+b) % 2  != 0):
-	#	stop_condition = True
-# Максимальное количество клиентов - это левая граница
-clients_count = a
-print "Maximum clents = " + str(clients_count)
+	stop_test = (b - a <= get_precision(a))
+	maximum_clients = a
+
+print "Maximum clients = " + str(maximum_clients)

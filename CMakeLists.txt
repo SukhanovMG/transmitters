@@ -42,6 +42,9 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common")
 
 add_subdirectory(common)
 
+set(FOR_CONFIG_USE_LIBEV "false")
+set(FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES "false")
+
 set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
 set(FOR_CONFIG_USE_MEMPOOL "false")
 set(FOR_CONFIG_USE_JEMALLOC "false")
@@ -75,6 +78,14 @@ set(FOR_CONFIG_USE_MEMPOOL "true")
 set(FOR_CONFIG_USE_JEMALLOC "true")
 configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool_jemalloc" @ONLY)
 
+set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
+set(FOR_CONFIG_USE_MEMPOOL "true")
+set(FOR_CONFIG_USE_JEMALLOC "false")
+set(FOR_CONFIG_USE_LIBEV "true")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_libev_no_return" @ONLY)
+set(FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES "true")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_libev_return" @ONLY)
+
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
 
@@ -87,6 +98,6 @@ target_link_libraries("${CMAKE_PROJECT_NAME}"
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
                                             ${LIBEV_LIBRARIES}
-											${PERFORMANCE_LIBS}
+                                            ${PERFORMANCE_LIBS}
                                             )
 

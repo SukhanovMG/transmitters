@@ -24,5 +24,5 @@ CopyBlockOnTransfer = @FOR_CONFIG_COPY_BLOCK_ON_TRANSFER@
 UseJeMalloc = @FOR_CONFIG_USE_JEMALLOC@
 
 # Флаг использования libev
-UseLibev = true
-ReturnPointersThroughPipes = true
+UseLibev = @FOR_CONFIG_USE_LIBEV@
+ReturnPointersThroughPipes = @FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES@
