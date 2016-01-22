@@ -98,8 +98,5 @@ target_link_libraries("${CMAKE_PROJECT_NAME}"
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
                                             ${LIBEV_LIBRARIES}
-                                            #${PERFORMANCE_LIBS}
+                                            ${PERFORMANCE_LIBS}
                                             )
-if (GPERFTOOLS_FOUND)
-	target_link_libraries("${CMAKE_PROJECT_NAME}" ${PERFORMANCE_LIBS})
-endif (GPERFTOOLS_FOUND)
