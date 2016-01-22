@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "uthash/utlist.h"
+#include "tm_configuration.h"
 
 #include <pthread.h>
 
@@ -17,7 +18,9 @@ typedef struct _mempool_elem {
 
 typedef struct _mempool {
 	pthread_mutex_t mutex;
+	pthread_spinlock_t spinlock;
 	int thread_safe;
+	int use_spinlock;
 
 	size_t elem_size;
 	size_t count;
@@ -45,8 +48,10 @@ void tm_mempool_delete(tm_mempool *pool)
 			free(e);
 		}
 
-		if (_pool->thread_safe)
+		if (_pool->thread_safe) {
 			pthread_mutex_destroy(&_pool->mutex);
+			pthread_spin_destroy(&_pool->spinlock);
+		}
 
 		free(_pool);
 	}
@@ -82,26 +87,38 @@ tm_mempool *tm_mempool_new(size_t elem_size, size_t count, int thread_safe)
 	mempool *pool = NULL;
 
 	pool = tm_calloc(sizeof(mempool));
-	if (pool) {
+	if (!pool)
+		goto lbl_error;
 
-		pool->thread_safe = thread_safe;
+	pool->thread_safe = thread_safe;
+	pool->use_spinlock = configuration.use_spinlock;
 
-		if(pool->thread_safe && pthread_mutex_init(&pool->mutex, NULL) != 0)
-		{
-			free(pool);
-			return NULL;
-		}
-
-		pool->elem_size = elem_size;
-
-		if (!tm_mempool_grow(pool, count)) {
-			if (pool->thread_safe)
-				pthread_mutex_destroy(&pool->mutex);
-			free(pool);
-			return NULL;
+	if (pool->thread_safe) {
+		if (pool->use_spinlock) {
+			if (pthread_spin_init(&pool->spinlock, 0) != 0)
+				goto lbl_error;
+		} else {
+			if (pthread_mutex_init(&pool->mutex, NULL) != 0)
+				goto lbl_error;
 		}
 	}
 
+	pool->elem_size = elem_size;
+
+	if (!tm_mempool_grow(pool, count)) {
+		goto lbl_error;
+	}
+
+	goto lbl_return;
+
+lbl_error:
+	if (pool) {
+		pthread_mutex_destroy(&pool->mutex);
+		pthread_spin_destroy(&pool->spinlock);
+		free(pool);
+		pool = NULL;
+	}
+lbl_return:
 	_pool = (void*) pool;
 	return _pool;
 }
@@ -113,8 +130,12 @@ void *tm_mempool_get(tm_mempool *pool)
 
 	if (pool) {
 
-		if (_pool->thread_safe)
-			pthread_mutex_lock(&_pool->mutex);
+		if (_pool->thread_safe) {
+			if (_pool->use_spinlock)
+				pthread_spin_lock(&_pool->spinlock);
+			else
+				pthread_mutex_lock(&_pool->mutex);
+		}
 
 		if (_pool->free == 0) {
 			tm_mempool_grow(_pool, _pool->count);
@@ -128,8 +149,12 @@ void *tm_mempool_get(tm_mempool *pool)
 			_pool->free--;
 		}
 
-		if (_pool->thread_safe)
-			pthread_mutex_unlock(&_pool->mutex);
+		if (_pool->thread_safe) {
+			if (_pool->use_spinlock)
+				pthread_spin_unlock(&_pool->spinlock);
+			else
+				pthread_mutex_unlock(&_pool->mutex);
+		}
 	}
 
 	return data;
@@ -141,11 +166,19 @@ void tm_mempool_return(tm_mempool *pool, void *data)
 	if (pool && data)
 	{
 		mempool_elem *e = data - sizeof(mempool_elem);
-		if (_pool->thread_safe)
-			pthread_mutex_lock(&_pool->mutex);
+		if (_pool->thread_safe) {
+			if (_pool->use_spinlock)
+				pthread_spin_lock(&_pool->spinlock);
+			else
+				pthread_mutex_lock(&_pool->mutex);
+		}
 		DL_APPEND(_pool->elements, e);
 		_pool->free++;
-		if (_pool->thread_safe)
-			pthread_mutex_unlock(&_pool->mutex);
+		if (_pool->thread_safe) {
+			if (_pool->use_spinlock)
+				pthread_spin_unlock(&_pool->spinlock);
+			else
+				pthread_mutex_unlock(&_pool->mutex);
+		}
 	}
 }

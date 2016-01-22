@@ -64,6 +64,8 @@ inline void tm_block_destroy(tm_block *block)
 	if(!block)
 		return;
 
+	tm_refcount_destroy((tm_refcount*)block);
+
 	if (configuration.use_mempool && mempool)
 		tm_mempool_return(mempool, (void *) block);
 	else

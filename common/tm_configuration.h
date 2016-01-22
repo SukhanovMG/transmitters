@@ -33,6 +33,7 @@ typedef struct _read_config_parameters_t {
 	int copy_block_on_transfer;	/*!< Флаг копирования блока при передаче от главного потока к рабочему */
 	int use_jemalloc;			/*!< Флаг использования jemalloc */
 	int use_libev;
+	int use_spinlock;
 	int return_pointers_through_pipes;
 } read_config_parameters_t;
 
