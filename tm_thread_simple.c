@@ -43,10 +43,11 @@ static double calc_bitrate(double t2, double t1, int samples)
 	return (double) configuration.block_size * 8.0 * samples / (diff == 0? 1e-9 : diff) / 1024.0;
 }
 
-static int sample_bitrate(tm_time_bitrate *bitrate_ctx)
+static int sample_bitrate(tm_time_bitrate *bitrate_ctx, double cur_time)
 {
 	int ret = 0;
-	double cur_time = tm_time_get_current_ntime();
+	//double cur_time = tm_time_get_current_ntime();
+	cur_time = cur_time < 0 ? tm_time_get_current_ntime() : cur_time;
 
 	if (bitrate_ctx->bitrate_sample_count == -1)
 	{
@@ -73,19 +74,20 @@ static int sample_bitrate(tm_time_bitrate *bitrate_ctx)
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
-	client_block_t *client_block_array = tm_calloc(thread_ctx->clients_count * sizeof(client_block_t));
+	client_block_t *client_block_array = tm_calloc(128 * sizeof(client_block_t));
 
 	while(!thread_ctx->shutdown) {
 		int pop_res = 0;
-		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, thread_ctx->clients_count);
+		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, 128);
 		if (pop_res != 1)
 			break;
 		if (client_block_array[0].block) {
-			for (int i = 0; i < thread_ctx->clients_count; i++) {
+			double cur_time = tm_time_get_current_ntime();
+			for (int i = 0; i < 128; i++) {
 				if (client_block_array[i].block == NULL)
 					break; // break for
 				tm_block_dispose_block(client_block_array[i].block);
-				if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id]))
+				if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id], cur_time))
 				{
 					if (thread_ctx->bitrate_ctx[client_block_array[i].client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
 					{
