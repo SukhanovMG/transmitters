@@ -2,8 +2,8 @@
 #include "tm_alloc.h"
 #include <uthash/utlist.h>
 
-client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q);
-int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *block_queue_elem);
+static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q);
+static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *block_queue_elem);
 
 void tm_queue_destroy(tm_queue_ctx *q)
 {
@@ -38,7 +38,7 @@ tm_queue_ctx *tm_queue_create()
 	return q;
 }
 
-int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *client_block)
+static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *client_block)
 {
 	tm_queue_elem_ctx *elem = NULL;
 
@@ -56,7 +56,7 @@ int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *client_block)
 	return 1;
 }
 
-client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q)
+static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q)
 {
 	tm_queue_elem_ctx *elem = NULL;
 	client_block_t client_block = { NULL, 0 };

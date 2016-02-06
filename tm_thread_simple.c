@@ -73,27 +73,31 @@ static int sample_bitrate(tm_time_bitrate *bitrate_ctx)
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
-	client_block_t client_block_array[128];
+	client_block_t *client_block_array = tm_calloc(thread_ctx->clients_count * sizeof(client_block_t));
 
 	while(!thread_ctx->shutdown) {
-		tm_queue_pop_front(thread_ctx->queue, (client_block_t*)client_block_array, 128);
+		int pop_res = 0;
+		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, thread_ctx->clients_count);
+		if (pop_res != 1)
+			break;
 		if (client_block_array[0].block) {
-			for (int i = 0; i < 128; i++) {
+			for (int i = 0; i < thread_ctx->clients_count; i++) {
 				if (client_block_array[i].block == NULL)
-					break;
+					break; // break for
 				tm_block_dispose_block(client_block_array[i].block);
 				if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id]))
 				{
 					if (thread_ctx->bitrate_ctx[client_block_array[i].client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
 					{
 						tm_low_bitrate_flag = 1;
-						break;
+						goto thread_shutdown; // break for and while
 					}
 				}
 			}
 		}
 	}
-
+thread_shutdown:
+	tm_free(client_block_array);
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
