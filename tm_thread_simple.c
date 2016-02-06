@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <math.h>
+#include <tm_queue.h>
 
 typedef struct _tm_time_bitrate {
 	double bitrate;
@@ -72,26 +73,31 @@ static int sample_bitrate(tm_time_bitrate *bitrate_ctx)
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
-	tm_queue_elem_ctx *elem = NULL;
-	int client_id = 0;
-	while(!thread_ctx->shutdown)
-	{
-		elem = tm_queue_pop_front(thread_ctx->queue);
-		if (elem)
-		{
-			tm_block_dispose_block(elem->block);
-			client_id = elem->client_id;
-			tm_free(elem);
-			if (sample_bitrate(&thread_ctx->bitrate_ctx[client_id]))
-			{
-					if (thread_ctx->bitrate_ctx[client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
+	client_block_t *client_block_array = tm_calloc(thread_ctx->clients_count * sizeof(client_block_t));
+
+	while(!thread_ctx->shutdown) {
+		int pop_res = 0;
+		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, thread_ctx->clients_count);
+		if (pop_res != 1)
+			break;
+		if (client_block_array[0].block) {
+			for (int i = 0; i < thread_ctx->clients_count; i++) {
+				if (client_block_array[i].block == NULL)
+					break; // break for
+				tm_block_dispose_block(client_block_array[i].block);
+				if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id]))
+				{
+					if (thread_ctx->bitrate_ctx[client_block_array[i].client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
 					{
 						tm_low_bitrate_flag = 1;
-						break;
+						goto thread_shutdown; // break for and while
 					}
+				}
 			}
 		}
 	}
+thread_shutdown:
+	tm_free(client_block_array);
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
@@ -135,7 +141,7 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 
 	pthread_mutex_lock(&thread->queue->mutex);
 	thread->shutdown = 1;
-	thread->queue->finish = 1;
+	thread->queue->break_flag = 1;
 	pthread_cond_signal(&thread->queue->cond);
 	pthread_mutex_unlock(&thread->queue->mutex);
 
@@ -218,8 +224,14 @@ TMThreadStatus tm_threads_shutdown_simple()
 TMThreadStatus tm_threads_work_simple()
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
+	client_block_t *client_block_array = NULL;
+	int client_block_array_size = work_threads.threads[0].clients_count;
 	tm_block *block = NULL;
 	double current_time = 0;
+
+	client_block_array = tm_calloc(client_block_array_size * sizeof(client_block_t));
+	if (!client_block_array)
+		return status;
 
 	work_threads.start_time = tm_time_get_current_ntime();
 
@@ -235,10 +247,12 @@ TMThreadStatus tm_threads_work_simple()
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
 		{
-			for (int j = 0; j < work_threads.threads[i].clients_count; j++)
+			for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
 			{
-				tm_queue_push_back_client_id(work_threads.threads[i].queue, block, j);
+				client_block_array[j].block = tm_block_transfer_block(block);
+				client_block_array[j].client_id = j;
 			}
+			tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
 		}
 		tm_block_dispose_block(block);
 		time_after_work = tm_time_get_current_ntime();
@@ -254,5 +268,7 @@ TMThreadStatus tm_threads_work_simple()
 		TM_LOG_TRACE("Low bitrate.");
 	else
 		status = TMThreadStatus_SUCCESS;
+
+	tm_free(client_block_array);
 	return status;
 }
