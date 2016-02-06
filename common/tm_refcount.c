@@ -28,12 +28,12 @@ static void inner_tm_refcount_release(void *obj, int thread_safe)
 	{
 		if (thread_safe) {
 			if (__sync_sub_and_fetch(&refcount_ctx->counter, 1) == 0) {
-				//if (refcount_ctx->destructor)
+				if (refcount_ctx->destructor)
 					refcount_ctx->destructor(obj);
 			}
 		} else {
 			if (--refcount_ctx->counter == 0) {
-				//if (refcount_ctx->destructor)
+				if (refcount_ctx->destructor)
 					refcount_ctx->destructor(obj);
 			}
 		}
