@@ -88,6 +88,7 @@ configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_libev_return" @ONL
 
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
+configure_file("testall_new.sh" "${EXECUTABLE_OUTPUT_PATH}/testall_new.sh" COPYONLY)
 
 set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c)
 
