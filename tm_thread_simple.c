@@ -12,12 +12,6 @@
 #include <math.h>
 #include <tm_queue.h>
 
-typedef struct _tm_time_bitrate {
-	double bitrate;
-	int bitrate_sample_count;
-	double start_time;
-} tm_time_bitrate;
-
 typedef struct _tm_thread_t {
 	pthread_t thread;
 	tm_queue_ctx *queue;
@@ -36,40 +30,6 @@ typedef struct _tm_threads_t {
 static int tm_shutdown_flag = 0;
 static int tm_low_bitrate_flag = 0;
 static tm_threads_t work_threads;
-
-static double calc_bitrate(double t2, double t1, int samples)
-{
-	double diff = fabs(t2 - t1);
-	return (double) configuration.block_size * 8.0 * samples / (diff == 0? 1e-9 : diff) / 1024.0;
-}
-
-static int sample_bitrate(tm_time_bitrate *bitrate_ctx, double cur_time)
-{
-	int ret = 0;
-	//double cur_time = tm_time_get_current_ntime();
-	cur_time = cur_time < 0 ? tm_time_get_current_ntime() : cur_time;
-
-	if (bitrate_ctx->bitrate_sample_count == -1)
-	{
-		bitrate_ctx->bitrate = 0.0;
-		bitrate_ctx->start_time = cur_time;
-		bitrate_ctx->bitrate_sample_count = 0;
-	}
-	else
-	{
-		bitrate_ctx->bitrate_sample_count++;
-	}
-
-	if (cur_time - bitrate_ctx->start_time >= configuration.avg_bitrate_calc_time)
-	{
-		ret = 1;
-		if (bitrate_ctx->bitrate_sample_count != 0)
-			bitrate_ctx->bitrate = calc_bitrate(cur_time, bitrate_ctx->start_time, bitrate_ctx->bitrate_sample_count);
-		bitrate_ctx->bitrate_sample_count = -1;
-	}
-	return ret;
-}
-
 
 static void tm_thread_function(void* thread)
 {

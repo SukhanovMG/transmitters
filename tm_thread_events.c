@@ -4,6 +4,7 @@
 #include "tm_block.h"
 #include "tm_configuration.h"
 #include "tm_logging.h"
+#include "tm_time.h"
 
 #include <ev.h>
 #include <errno.h>
@@ -40,12 +41,6 @@ typedef struct {
 
 #define PIPE_POINTERS_ATOMIC_WRITE_COUNT (PIPE_BUF / sizeof(tm_block*))
 #define PIPE_POINTERS_ATOMIC_WRITE_COUNT_BYTES (PIPE_POINTERS_ATOMIC_WRITE_COUNT * sizeof(tm_block*))
-
-typedef struct _tm_time_bitrate {
-	double bitrate;
-	int bitrate_sample_count;
-	double start_time;
-} tm_time_bitrate;
 
 /**
  * Структура/контекст рабочего потока.
@@ -93,39 +88,6 @@ typedef struct {
 } tm_main_thread_t;
 
 static tm_main_thread_t main_thread;
-
-
-inline static double calc_bitrate(double t2, double t1, int samples)
-{
-	double diff = fabs(t2 - t1);
-	return (double) configuration.block_size * 8.0 * samples / (diff == 0? 1e-9 : diff) / 1024.0;
-}
-
-static int sample_bitrate(tm_time_bitrate *bitrate_ctx, struct ev_loop *loop)
-{
-	int ret = 0;
-	double cur_time = ev_now(loop);
-
-	if (bitrate_ctx->bitrate_sample_count == -1)
-	{
-		bitrate_ctx->bitrate = 0.0;
-		bitrate_ctx->start_time = cur_time;
-		bitrate_ctx->bitrate_sample_count = 0;
-	}
-	else
-	{
-		bitrate_ctx->bitrate_sample_count++;
-	}
-
-	if (cur_time - bitrate_ctx->start_time >= configuration.avg_bitrate_calc_time)
-	{
-		ret = 1;
-		if (bitrate_ctx->bitrate_sample_count != 0)
-			bitrate_ctx->bitrate = calc_bitrate(cur_time, bitrate_ctx->start_time, bitrate_ctx->bitrate_sample_count);
-		bitrate_ctx->bitrate_sample_count = -1;
-	}
-	return ret;
-}
 
 
 /**
@@ -231,7 +193,6 @@ static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 			break;
 
 		if (configuration.return_pointers_through_pipes) {
-		//if (0) {
 			if (thread->pointers_to_send_back_count == POINTERS_TO_SEND_BACK_ARRAY_SIZE) {
 				TM_LOG_ERROR("Pointers to send back overflow");
 				return;
@@ -243,7 +204,7 @@ static void pipe_read_callback(EV_P_ ev_io *w, int revents)
 		}
 		size_t client_id = messages[i].client_id;
 
-		if (sample_bitrate(&thread->bitrate[client_id], loop))
+		if (sample_bitrate(&thread->bitrate[client_id], ev_now(loop)))
 		{
 			if (thread->bitrate[client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
 			{
