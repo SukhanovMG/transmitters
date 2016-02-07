@@ -12,6 +12,8 @@
 #include <math.h>
 #include <tm_queue.h>
 
+#define CLIENT_BLOCK_ARRAY_SIZE 128
+
 typedef struct _tm_thread_t {
 	pthread_t thread;
 	tm_queue_ctx *queue;
@@ -34,18 +36,18 @@ static tm_threads_t work_threads;
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
-	client_block_t *client_block_array = tm_calloc(128 * sizeof(client_block_t));
+	client_block_t client_block_array[CLIENT_BLOCK_ARRAY_SIZE];
 
 	while(!thread_ctx->shutdown) {
 		int pop_res = 0;
-		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, 128);
+		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, CLIENT_BLOCK_ARRAY_SIZE);
 		if (pop_res != 1)
-			break;
+			break; // break while
 		if (client_block_array[0].block) {
 			double cur_time = tm_time_get_current_ntime();
-			for (int i = 0; i < 128; i++) {
+			for (int i = 0; i < CLIENT_BLOCK_ARRAY_SIZE; i++) {
 				if (client_block_array[i].block == NULL)
-					break; // break for
+					break; // break for only!
 				tm_block_dispose_block(client_block_array[i].block);
 				if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id], cur_time))
 				{
@@ -59,7 +61,7 @@ static void tm_thread_function(void* thread)
 		}
 	}
 thread_shutdown:
-	tm_free(client_block_array);
+	return;
 }
 
 static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
