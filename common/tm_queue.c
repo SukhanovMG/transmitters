@@ -1,6 +1,9 @@
 #include "tm_queue.h"
+#include <stdlib.h>
 #include "tm_alloc.h"
+#include "tm_configuration.h"
 #include <uthash/utlist.h>
+#include <jemalloc/jemalloc.h>
 
 static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q);
 static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *block_queue_elem);
@@ -35,6 +38,13 @@ tm_queue_ctx *tm_queue_create()
 		return NULL;
 	}
 
+	q->queue_elem_allocator.f_alloc = (tm_alloc_function) malloc;
+	q->queue_elem_allocator.f_free = (tm_free_function) free;
+	if (configuration.use_jemalloc) {
+		q->queue_elem_allocator.f_alloc = (tm_alloc_function) je_malloc;
+		q->queue_elem_allocator.f_free = (tm_free_function) je_free;
+	}
+
 	return q;
 }
 
@@ -45,7 +55,7 @@ static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *client_bloc
 	if (!q || !client_block)
 		return 0;
 
-	elem = tm_calloc(sizeof(tm_queue_elem_ctx));
+	elem = tm_calloc_custom(sizeof(tm_queue_elem_ctx), &q->queue_elem_allocator);
 	if (!elem)
 		return 0;
 
@@ -64,7 +74,7 @@ static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q)
 		elem = q->head;
 		DL_DELETE(q->head, elem);
 		client_block = elem->client_block;
-		tm_free(elem);
+		tm_free_custom(elem, &q->queue_elem_allocator);
 	}
 
 	return client_block;

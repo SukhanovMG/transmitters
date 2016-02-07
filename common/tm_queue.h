@@ -4,6 +4,7 @@
 
 #include <pthread.h>
 #include "tm_block.h"
+#include "tm_alloc.h"
 
 typedef struct {
 	tm_block *block;  // указатель на блок
@@ -21,6 +22,7 @@ typedef struct _tm_queue_ctx {
 	pthread_cond_t cond;
 	tm_queue_elem_ctx *head;
 	volatile int break_flag;
+	tm_allocator queue_elem_allocator;
 } tm_queue_ctx;
 
 tm_queue_ctx *tm_queue_create();
