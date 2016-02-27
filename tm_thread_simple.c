@@ -15,7 +15,7 @@
 typedef struct _tm_thread_t {
 	pthread_t thread;
 	tm_queue_ctx *queue;
-	int shutdown;
+	volatile int shutdown;
 	tm_time_bitrate *bitrate_ctx;
 	int clients_count;
 } tm_thread_t;
@@ -26,6 +26,8 @@ typedef struct _tm_threads_t {
 	double start_time;
 } tm_threads_t;
 
+#define NEED_TO_SHUTDOWN_THREAD(thread_ctx) (__sync_add_and_fetch(&thread_ctx->shutdown, 0))
+#define MARK_THREAD_FOR_SHUTDOWN(thread_ctx) (__sync_add_and_fetch(&thread_ctx->shutdown, 1))
 
 static int tm_shutdown_flag = 0;
 static int tm_low_bitrate_flag = 0;
@@ -36,7 +38,7 @@ static void tm_thread_function(void* thread)
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
 	client_block_t *client_block_array = tm_calloc(128 * sizeof(client_block_t));
 
-	while(!thread_ctx->shutdown) {
+	while(!NEED_TO_SHUTDOWN_THREAD(thread_ctx)) {
 		int pop_res = 0;
 		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, 128);
 		if (pop_res != 1)
@@ -101,8 +103,8 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 	if (!thread)
 		return status;
 
+	MARK_THREAD_FOR_SHUTDOWN(thread);
 	pthread_mutex_lock(&thread->queue->mutex);
-	thread->shutdown = 1;
 	thread->queue->break_flag = 1;
 	pthread_cond_signal(&thread->queue->cond);
 	pthread_mutex_unlock(&thread->queue->mutex);
