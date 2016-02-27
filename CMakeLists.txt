@@ -36,6 +36,9 @@ set(LIBCONFIG_DST_DIR "${CMAKE_BINARY_DIR}/libs/libconfig")
 set(LIBJEMALLOC_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common/libs/jemalloc")
 set(LIBJEMALLOC_DST_DIR "${CMAKE_BINARY_DIR}/libs/jemalloc")
 
+set(LIBHL_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common/libs/libhl")
+set(LIBHL_DST_DIR "${CMAKE_BINARY_DIR}/libs/libhl")
+
 include_directories("${LIBCONFIG_DST_DIR}/lib")
 include_directories("${LIBJEMALLOC_DST_DIR}/include")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common")
@@ -95,6 +98,7 @@ set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c)
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"
                                             rt # Исправить!!!!
+                                            ${LIBHL_DST_DIR}/build/libhl.a
                                             ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a

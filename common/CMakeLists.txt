@@ -34,6 +34,26 @@ add_custom_command(
     DEPENDS ${LIBJEMALLOC_DST_DIR}/Makefile
 )
 
+# Сборка libhl
+add_custom_target(
+        libhl
+        DEPENDS ${LIBHL_DST_DIR}/build/libhl.a
+)
+add_custom_command(
+        OUTPUT ${LIBHL_DST_DIR}/build/configure
+        COMMAND tar -xzf "${CMAKE_CURRENT_SOURCE_DIR}/libs/libhl.tar.gz" --directory "${CMAKE_BINARY_DIR}/libs/"
+)
+add_custom_command(
+        OUTPUT ${LIBHL_DST_DIR}/build/Makefile
+        COMMAND cd ${LIBHL_DST_DIR}/build && ${LIBHL_DST_DIR}/build/configure -q > ${CMAKE_BINARY_DIR}/libhl.log 2>&1
+        DEPENDS ${LIBHL_DST_DIR}/build/configure
+)
+add_custom_command(
+        OUTPUT ${LIBHL_DST_DIR}/build/libhl.a
+        COMMAND cd ${LIBHL_DST_DIR}/build && make clean > ${CMAKE_BINARY_DIR}/libhl.log 2>&1 && make > ${CMAKE_BINARY_DIR}/libhl.log 2>&1
+        DEPENDS ${LIBHL_DST_DIR}/build/Makefile
+)
+
 add_library(COMMON_MODULES OBJECT
     tm_alloc.c
     tm_configuration.c
@@ -45,4 +65,4 @@ add_library(COMMON_MODULES OBJECT
     tm_mempool.c
 )
 
-add_dependencies(COMMON_MODULES libconfig libjemalloc)
+add_dependencies(COMMON_MODULES libconfig libjemalloc libhl)
