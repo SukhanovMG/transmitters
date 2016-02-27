@@ -20,9 +20,10 @@ find_package(Pthread REQUIRED)
 find_package(LibEV REQUIRED)
 find_package(Gperftools)
 
-if (GPERFTOOLS_FOUND)
+if (GPERFTOOLS_FOUND AND WITH_PERF_TOOLS)
+	message("===== Building with GOOGLE PERFORMANCE TOOLS =====")
 	set(PERFORMANCE_LIBS ${GPERFTOOLS_LIBRARIES})
-endif (GPERFTOOLS_FOUND)
+endif (GPERFTOOLS_FOUND AND WITH_PERF_TOOLS)
 
 # Флаги
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fno-strict-aliasing -std=gnu99")
