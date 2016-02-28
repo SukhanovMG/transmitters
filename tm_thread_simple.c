@@ -15,6 +15,8 @@
 typedef struct _tm_thread_t {
 	pthread_t thread;
 	tm_queue_ctx *queue;
+	pthread_mutex_t q_mutex;
+	pthread_cond_t q_cond;
 	volatile int shutdown;
 	tm_time_bitrate *bitrate_ctx;
 	int clients_count;
@@ -27,11 +29,41 @@ typedef struct _tm_threads_t {
 } tm_threads_t;
 
 #define NEED_TO_SHUTDOWN_THREAD(thread_ctx) (__sync_add_and_fetch(&thread_ctx->shutdown, 0))
-#define MARK_THREAD_FOR_SHUTDOWN(thread_ctx) (__sync_add_and_fetch(&thread_ctx->shutdown, 1))
+#define MARK_THREAD_FOR_SHUTDOWN(thread_ctx) \
+{ \
+	__sync_add_and_fetch(&thread_ctx->shutdown, 1); \
+	pthread_cond_signal(&thread_ctx->q_cond); \
+}
 
 static int tm_shutdown_flag = 0;
 static int tm_low_bitrate_flag = 0;
 static tm_threads_t work_threads;
+
+static int tm_thread_pop_from_queue(tm_thread_t *thread_ctx, client_block_t *array, int count)
+{
+	int result = 0;
+	if (thread_ctx) {
+		pthread_mutex_lock(&thread_ctx->q_mutex);
+		while (tm_queue_is_empty(thread_ctx->queue)) {
+			pthread_cond_wait(&thread_ctx->q_cond, &thread_ctx->q_mutex);
+			if (NEED_TO_SHUTDOWN_THREAD(thread_ctx)) {
+				pthread_mutex_unlock(&thread_ctx->q_mutex);
+				return result;
+			}
+		}
+		result = tm_queue_pop_front(thread_ctx->queue, array, count);
+		pthread_mutex_unlock(&thread_ctx->q_mutex);
+	}
+	return result;
+}
+
+static void tm_thread_push_to_queue(tm_thread_t *thread_ctx, client_block_t *array, int count)
+{
+	pthread_mutex_lock(&thread_ctx->q_mutex);
+	tm_queue_push_back(thread_ctx->queue, array, count);
+	pthread_cond_signal(&thread_ctx->q_cond);
+	pthread_mutex_unlock(&thread_ctx->q_mutex);
+}
 
 static void tm_thread_function(void* thread)
 {
@@ -39,11 +71,7 @@ static void tm_thread_function(void* thread)
 	client_block_t *client_block_array = tm_calloc(128 * sizeof(client_block_t));
 
 	while(!NEED_TO_SHUTDOWN_THREAD(thread_ctx)) {
-		int pop_res = 0;
-		pop_res = tm_queue_pop_front(thread_ctx->queue, client_block_array, 128);
-		if (pop_res != 1)
-			break;
-		if (client_block_array[0].block) {
+		if (tm_thread_pop_from_queue(thread_ctx, client_block_array, 128)) {
 			double cur_time = tm_time_get_current_ntime();
 			for (int i = 0; i < 128; i++) {
 				if (client_block_array[i].block == NULL)
@@ -78,6 +106,12 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 
 	thread->shutdown = 0;
 
+	if(pthread_mutex_init(&thread->q_mutex, NULL) != 0)
+		return status;
+
+	if (pthread_cond_init(&thread->q_cond, NULL) != 0)
+		return status;
+
 	thread->bitrate_ctx = (tm_time_bitrate*)tm_calloc(thread->clients_count * sizeof(tm_time_bitrate));
 	if(!thread->bitrate_ctx)
 		return status;
@@ -104,14 +138,12 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 		return status;
 
 	MARK_THREAD_FOR_SHUTDOWN(thread);
-	pthread_mutex_lock(&thread->queue->mutex);
-	thread->queue->break_flag = 1;
-	pthread_cond_signal(&thread->queue->cond);
-	pthread_mutex_unlock(&thread->queue->mutex);
 
 	pthread_join(thread->thread, &thread_status);
-	tm_queue_destroy(thread->queue);
+	pthread_cond_destroy(&thread->q_cond);
+	pthread_mutex_destroy(&thread->q_mutex);
 	tm_free(thread->bitrate_ctx);
+	tm_queue_destroy(thread->queue);
 
 	status = TMThreadStatus_SUCCESS;
 	return status;
@@ -216,7 +248,7 @@ TMThreadStatus tm_threads_work_simple()
 				client_block_array[j].block = tm_block_transfer_block(block);
 				client_block_array[j].client_id = j;
 			}
-			tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
+			tm_thread_push_to_queue(&work_threads.threads[i], client_block_array, work_threads.threads[i].clients_count);
 		}
 		tm_block_dispose_block(block);
 		time_after_work = tm_time_get_current_ntime();

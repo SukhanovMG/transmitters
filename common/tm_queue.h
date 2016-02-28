@@ -18,10 +18,7 @@ typedef struct _tm_queue_elem_ctx {
 } tm_queue_elem_ctx;
 
 typedef struct _tm_queue_ctx {
-	pthread_mutex_t mutex;
-	pthread_cond_t cond;
 	tm_queue_elem_ctx *head;
-	volatile int break_flag;
 	tm_allocator queue_elem_allocator;
 } tm_queue_ctx;
 
@@ -30,5 +27,7 @@ void tm_queue_destroy(tm_queue_ctx *q);
 
 int tm_queue_push_back(tm_queue_ctx *q, client_block_t *client_block_array, int count);
 int tm_queue_pop_front(tm_queue_ctx *q, client_block_t *client_block_array, int count);
+
+int tm_queue_is_empty(tm_queue_ctx *q);
 
 #endif /* TM_QUEUE_H */

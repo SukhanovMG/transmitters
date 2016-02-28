@@ -14,8 +14,6 @@ void tm_queue_destroy(tm_queue_ctx *q)
 		while (q->head) {
 			tm_queue_pop_front_inner(q);
 		}
-		pthread_cond_destroy(&q->cond);
-		pthread_mutex_destroy(&q->mutex);
 		tm_free(q);
 	}
 }
@@ -25,17 +23,6 @@ tm_queue_ctx *tm_queue_create()
 	tm_queue_ctx *q = tm_calloc(sizeof(tm_queue_ctx));
 	if (!q){
 		return q;
-	}
-
-	if(pthread_mutex_init(&q->mutex, NULL) != 0)
-	{
-		tm_queue_destroy(q);
-		return NULL;
-	}
-	if (pthread_cond_init(&q->cond, NULL) != 0)
-	{
-		tm_queue_destroy(q);
-		return NULL;
 	}
 
 	q->queue_elem_allocator.f_alloc = (tm_alloc_function) malloc;
@@ -87,15 +74,11 @@ int tm_queue_push_back(tm_queue_ctx *q, client_block_t *client_block_array, int 
 	if (!q || !client_block_array || count <= 0)
 		return result;
 
-	pthread_mutex_lock(&q->mutex);
 	for (int i = 0; i < count; i++) {
 		result = tm_queue_push_back_inner(q, &client_block_array[i]);
 		if (result != 1)
 			break;
 	}
-	pthread_cond_signal(&q->cond);
-	pthread_mutex_unlock(&q->mutex);
-
 	return result;
 }
 
@@ -106,23 +89,17 @@ int tm_queue_pop_front(tm_queue_ctx *q, client_block_t *client_block_array, int 
 	if (!q || !client_block_array || count <= 0)
 		return result;
 
-	pthread_mutex_lock(&q->mutex);
-	while (!q->head) {
-		pthread_cond_wait(&q->cond, &q->mutex);
-		if (q->break_flag)
-		{
-			pthread_mutex_unlock(&q->mutex);
-			return result;
-		}
-	}
-
-	result = 1;
 	for (int i = 0; i < count; i++) {
 		client_block_array[i] = tm_queue_pop_front_inner(q);
 		if (client_block_array[i].block == NULL)
 			break;
 	}
-	pthread_mutex_unlock(&q->mutex);
+	result = client_block_array[0].block != NULL;
 	return result;
+}
+
+int tm_queue_is_empty(tm_queue_ctx *q)
+{
+	return q && !q->head;
 }
 
