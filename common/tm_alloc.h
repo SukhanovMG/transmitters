@@ -2,6 +2,8 @@
 #define TM_ALLOC_H
 
 #include <unistd.h>
+#include <stdlib.h>
+#include <jemalloc/jemalloc.h>
 
 typedef void * tm_alloc_t;
 
@@ -12,6 +14,9 @@ typedef struct {
 	tm_alloc_function f_alloc;
 	tm_free_function f_free;
 } tm_allocator;
+
+#define TM_ALLOCATOR_MALLOC(a) do { a.f_alloc = (tm_alloc_function) malloc; a.f_free = (tm_free_function) free; } while (0)
+#define TM_ALLOCATOR_JEMALLOC(a) do { a.f_alloc = (tm_alloc_function) je_malloc; a.f_free = (tm_free_function) je_free; } while (0)
 
 #define TM_CHECK_ALLOC_DEBUG 0
 

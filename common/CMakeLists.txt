@@ -58,6 +58,7 @@ add_library(COMMON_MODULES OBJECT
     tm_alloc.c
     tm_configuration.c
     tm_queue.c
+    tm_queue_simple.c
     tm_refcount.c
     tm_block.c
     tm_logging.c
