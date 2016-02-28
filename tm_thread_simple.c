@@ -43,6 +43,7 @@ static int tm_thread_pop_from_queue(tm_thread_t *thread_ctx, client_block_t *arr
 {
 	int result = 0;
 	if (thread_ctx) {
+		/*
 		pthread_mutex_lock(&thread_ctx->q_mutex);
 		while (tm_queue_is_empty(thread_ctx->queue)) {
 			pthread_cond_wait(&thread_ctx->q_cond, &thread_ctx->q_mutex);
@@ -50,19 +51,19 @@ static int tm_thread_pop_from_queue(tm_thread_t *thread_ctx, client_block_t *arr
 				pthread_mutex_unlock(&thread_ctx->q_mutex);
 				return result;
 			}
-		}
+		}*/
 		result = tm_queue_pop_front(thread_ctx->queue, array, count);
-		pthread_mutex_unlock(&thread_ctx->q_mutex);
+		//pthread_mutex_unlock(&thread_ctx->q_mutex);
 	}
 	return result;
 }
 
 static void tm_thread_push_to_queue(tm_thread_t *thread_ctx, client_block_t *array, int count)
 {
-	pthread_mutex_lock(&thread_ctx->q_mutex);
+	//pthread_mutex_lock(&thread_ctx->q_mutex);
 	tm_queue_push_back(thread_ctx->queue, array, count);
-	pthread_cond_signal(&thread_ctx->q_cond);
-	pthread_mutex_unlock(&thread_ctx->q_mutex);
+	//pthread_cond_signal(&thread_ctx->q_cond);
+	//pthread_mutex_unlock(&thread_ctx->q_mutex);
 }
 
 static void tm_thread_function(void* thread)
@@ -100,7 +101,8 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 	if (!thread)
 		return status;
 
-	thread->queue = tm_queue_create(kTmQueueSimple);
+	//thread->queue = tm_queue_create(kTmQueueSimple);
+	thread->queue = tm_queue_create(kTmQueueLockless);
 	if(!thread->queue)
 		return status;
 

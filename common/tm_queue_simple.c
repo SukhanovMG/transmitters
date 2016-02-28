@@ -13,9 +13,6 @@ typedef struct _queue_simple {
 	tm_allocator queue_elem_allocator;
 } queue_simple;
 
-//static client_block_t tm_queue_pop_front_simple(void *_q);
-//static int tm_queue_push_back_simple(void *_q, client_block_t *block_queue_elem);
-
 void tm_queue_destroy_simple(void *_q)
 {
 	queue_simple *q = (queue_simple *)_q;

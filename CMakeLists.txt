@@ -42,6 +42,7 @@ set(LIBHL_DST_DIR "${CMAKE_BINARY_DIR}/libs/libhl")
 
 include_directories("${LIBCONFIG_DST_DIR}/lib")
 include_directories("${LIBJEMALLOC_DST_DIR}/include")
+include_directories("${LIBHL_DST_DIR}/src")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common")
 
 add_subdirectory(common)
