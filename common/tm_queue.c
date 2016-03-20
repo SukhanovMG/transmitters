@@ -1,6 +1,7 @@
 #include "tm_queue.h"
 #include "tm_queue_simple.h"
 #include "tm_queue_lockless.h"
+#include "tm_queue_lockless2.h"
 #include "tm_alloc.h"
 #include "tm_configuration.h"
 #include <stdlib.h>
@@ -33,6 +34,16 @@ do { \
 	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_lockless; \
 } while (0)
 
+#define LOCKLESS_QUEUE_BACKEND2(backend) \
+do { \
+	backend.ctx = NULL; \
+	backend.create_func = (queue_backend_create) tm_queue_create_lockless2; \
+	backend.destroy_func = (queue_backend_destroy) tm_queue_destroy_lockless2; \
+	backend.push_back_func = (queue_backend_push_back) tm_queue_push_back_lockless2; \
+	backend.pop_front_func = (queue_backend_pop_front) tm_queue_pop_front_lockless2; \
+	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_lockless2; \
+} while (0)
+
 typedef struct _queue_ctx {
 	struct {
 		void *ctx;
@@ -62,6 +73,9 @@ tm_queue_ctx *tm_queue_create(tm_queue_type type)
 				break;
 			case kTmQueueLockless:
 				LOCKLESS_QUEUE_BACKEND(q->backend);
+				break;
+			case kTmQueueLockless2:
+				LOCKLESS_QUEUE_BACKEND2(q->backend);
 				break;
 			default:
 				SIMPLE_QUEUE_BACKEND(q->backend);

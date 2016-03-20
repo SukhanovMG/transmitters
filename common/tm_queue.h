@@ -7,7 +7,8 @@
 
 typedef enum {
 	kTmQueueSimple = 0,
-	kTmQueueLockless
+	kTmQueueLockless,
+	kTmQueueLockless2
 } tm_queue_type;
 
 typedef void tm_queue_ctx;

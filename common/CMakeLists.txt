@@ -65,6 +65,9 @@ add_library(COMMON_MODULES OBJECT
     tm_logging.c
     tm_time.c
     tm_mempool.c
+
+    lqueue.c
+    tm_queue_lockless2.c
 )
 
 add_dependencies(COMMON_MODULES libconfig libjemalloc libhl)
