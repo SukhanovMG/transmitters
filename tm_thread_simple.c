@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <math.h>
 #include <tm_queue.h>
+#include <tm_block.h>
 
 typedef struct _tm_thread_t {
 	pthread_t thread;
@@ -20,6 +21,8 @@ typedef struct _tm_thread_t {
 	volatile int shutdown;
 	tm_time_bitrate *bitrate_ctx;
 	int clients_count;
+
+	int pipe_fd[2];
 } tm_thread_t;
 
 typedef struct _tm_threads_t {
@@ -52,9 +55,9 @@ static int tm_thread_pop_from_queue(tm_thread_t *thread_ctx, client_block_t *arr
 				return result;
 			}
 		}*/
-		if (!tm_queue_is_empty(thread_ctx->queue)) {
-			result = tm_queue_pop_front(thread_ctx->queue, array, count);
-		}
+
+		result = tm_queue_pop_front(thread_ctx->queue, array, count);
+
 		//pthread_mutex_unlock(&thread_ctx->q_mutex);
 	}
 	return result;
@@ -71,21 +74,33 @@ static void tm_thread_push_to_queue(tm_thread_t *thread_ctx, client_block_t *arr
 static void tm_thread_function(void* thread)
 {
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
-	client_block_t *client_block_array = tm_calloc(128 * sizeof(client_block_t));
+	client_block_t *client_block_array = tm_calloc(thread_ctx->clients_count * sizeof(client_block_t));
 
 	while(!NEED_TO_SHUTDOWN_THREAD(thread_ctx)) {
-		if (tm_thread_pop_from_queue(thread_ctx, client_block_array, 128)) {
-			double cur_time = tm_time_get_current_ntime();
-			for (int i = 0; i < 128; i++) {
-				if (client_block_array[i].block == NULL)
-					break; // break for
-				tm_block_dispose_block(client_block_array[i].block);
-				if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id], cur_time))
-				{
-					if (thread_ctx->bitrate_ctx[client_block_array[i].client_id].bitrate <= (double) configuration.bitrate - configuration.bitrate_diff)
-					{
-						tm_low_bitrate_flag = 1;
-						goto thread_shutdown; // break for and while
+		//if (tm_thread_pop_from_queue(thread_ctx, client_block_array, 128)) {
+		if (1) {
+			size_t count = 0;
+			ssize_t read_res = 0;
+			read_res = read(thread_ctx->pipe_fd[0], &count, sizeof(count));
+			if (read_res <= 0) {
+				TM_LOG_ERROR("pipe read error");
+				break;
+			}
+			if (count == 0)
+				break;
+			//client_block_t client_block_array[count];
+			if (tm_thread_pop_from_queue(thread_ctx, client_block_array, count)) {
+				double cur_time = tm_time_get_current_ntime();
+				for (int i = 0; i < count; i++) {
+					if (client_block_array[i].block == NULL)
+						break; // break for
+					tm_block_dispose_block(client_block_array[i].block);
+					if (sample_bitrate(&thread_ctx->bitrate_ctx[client_block_array[i].client_id], cur_time)) {
+						if (thread_ctx->bitrate_ctx[client_block_array[i].client_id].bitrate <=
+							(double) configuration.bitrate - configuration.bitrate_diff) {
+							tm_low_bitrate_flag = 1;
+							goto thread_shutdown; // break for and while
+						}
 					}
 				}
 			}
@@ -99,6 +114,7 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 	int pthread_create_ret;
+	int pipe_res;
 
 	if (!thread)
 		return status;
@@ -122,6 +138,10 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 	for(int i = 0; i < thread->clients_count; i++)
 		thread->bitrate_ctx[i].bitrate_sample_count = -1;
 
+	pipe_res = pipe(thread->pipe_fd);
+	if (pipe_res != 0)
+		return status;
+
 	pthread_create_ret = pthread_create(&thread->thread, NULL, (void*(*)(void *)) tm_thread_function, thread);
 	if(pthread_create_ret != 0)
 	{
@@ -144,9 +164,19 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 	MARK_THREAD_FOR_SHUTDOWN(thread);
 
 	pthread_join(thread->thread, &thread_status);
+	if (thread->pipe_fd[0]) close(thread->pipe_fd[0]);
+	if (thread->pipe_fd[1]) close(thread->pipe_fd[1]);
 	pthread_cond_destroy(&thread->q_cond);
 	pthread_mutex_destroy(&thread->q_mutex);
 	tm_free(thread->bitrate_ctx);
+	int pop_res = 1;
+	while(pop_res) {
+		client_block_t array[100];
+		pop_res = tm_queue_pop_front(thread->queue, array, 100);
+		for (int i = 0; i < 100; i++) {
+			tm_block_dispose_block(array[i].block);
+		}
+	}
 	tm_queue_destroy(thread->queue);
 
 	status = TMThreadStatus_SUCCESS;
@@ -247,12 +277,35 @@ TMThreadStatus tm_threads_work_simple()
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
 		{
-			for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
-			{
+			size_t count = (size_t) work_threads.threads[i].clients_count;
+			size_t count_remaining = 0;
+			size_t iterations_count = 1;
+			if (work_threads.threads[i].clients_count > 1500) {
+				count = 1000;
+				iterations_count = (size_t) work_threads.threads[i].clients_count / 1000;
+				count_remaining = (size_t) work_threads.threads[i].clients_count % 1000;
+			}
+
+			for (size_t j = 0; j < work_threads.threads[i].clients_count; j++) {
 				client_block_array[j].block = tm_block_transfer_block(block);
 				client_block_array[j].client_id = j;
 			}
-			tm_thread_push_to_queue(&work_threads.threads[i], client_block_array, work_threads.threads[i].clients_count);
+			for (size_t iter = 0; iter < iterations_count; iter++) {
+				tm_thread_push_to_queue(&work_threads.threads[i], &client_block_array[iter * count], (int)count);
+				ssize_t write_res = write(work_threads.threads[i].pipe_fd[1], &count, sizeof(count));
+				if (write_res <= 0) {
+					TM_LOG_ERROR("write to pipe fail.");
+					break;
+				}
+			}
+			if (count_remaining > 0) {
+				tm_thread_push_to_queue(&work_threads.threads[i], &client_block_array[iterations_count * count], (int)count_remaining);
+				ssize_t write_res = write(work_threads.threads[i].pipe_fd[1], &count_remaining, sizeof(count_remaining));
+				if (write_res <= 0) {
+					TM_LOG_ERROR("write to pipe fail.");
+					break;
+				}
+			}
 		}
 		tm_block_dispose_block(block);
 		time_after_work = tm_time_get_current_ntime();
@@ -262,6 +315,14 @@ TMThreadStatus tm_threads_work_simple()
 
 		corrected_sleep_time = configuration.sleep_time - diff;
 		usleep(corrected_sleep_time);
+	}
+
+	size_t count = 0;
+	for (int i = 0; i < work_threads.threads_num; i++) {
+		ssize_t write_res = write(work_threads.threads[i].pipe_fd[1], &count, sizeof(count));
+		if (write_res <= 0) {
+			TM_LOG_ERROR("write to pipe fail.");
+		}
 	}
 
 	if (tm_low_bitrate_flag)
