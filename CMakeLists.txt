@@ -95,7 +95,12 @@ configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
 configure_file("testall_new.sh" "${EXECUTABLE_OUTPUT_PATH}/testall_new.sh" COPYONLY)
 
-set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c)
+set(SRC main.c
+		tm_thread.c
+		tm_thread_simple.c
+		tm_thread_events.c
+		tm_thread_events_lockless_queue.c
+	)
 
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"

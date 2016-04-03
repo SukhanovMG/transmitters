@@ -2,6 +2,7 @@
 
 #include "tm_thread_simple.h"
 #include "tm_thread_events.h"
+#include "tm_thread_events_lockless_queue.h"
 #include "tm_configuration.h"
 #include "tm_logging.h"
 
@@ -23,9 +24,9 @@ TMThreadStatus tm_threads_init(int count)
 	TMThreadStatus status = TMThreadStatus_ERROR;
 
 	if (configuration.use_libev) {
-		thread_module_ctx.init = tm_threads_init_events;
-		thread_module_ctx.work = tm_threads_work_events;
-		thread_module_ctx.shutdown = tm_threads_shutdown_events;
+		thread_module_ctx.init = tm_threads_init_events_lockless_queue;
+		thread_module_ctx.work = tm_threads_work_events_lockless_queue;
+		thread_module_ctx.shutdown = tm_threads_shutdown_events_lockless_queue;
 	} else {
 		thread_module_ctx.init = tm_threads_init_simple;
 		thread_module_ctx.work = tm_threads_work_simple;
