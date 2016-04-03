@@ -209,12 +209,27 @@ TMThreadStatus tm_threads_work_simple()
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
 		{
-			for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
-			{
-				client_block_array[j].block = tm_block_transfer_block(block);
-				client_block_array[j].client_id = j;
+			switch (configuration.simple_queue_feature) {
+				case kSimpleQueueOneElemInMutex:
+					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
+					{
+						client_block_array[0].block = tm_block_transfer_block(block);
+						client_block_array[0].client_id = j;
+
+						tm_queue_push_back(work_threads.threads[i].queue, client_block_array, 1);
+					}
+					break;
+				case kSimpleQueueMultipleElemInMutex:
+					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
+					{
+						client_block_array[j].block = tm_block_transfer_block(block);
+						client_block_array[j].client_id = j;
+					}
+					tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
+					break;
+				default:
+					break;
 			}
-			tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
 		}
 		tm_block_dispose_block(block);
 		time_after_work = tm_time_get_current_ntime();

@@ -15,6 +15,12 @@ typedef enum _ConfigurationStatus {
 	ConfigurationStatus_SUCCESS, /*!< Успешное чтение настроек */
 } ConfigurationStatus;
 
+typedef enum {
+	kSimpleQueueOneElemInMutex = 0,
+	kSimpleQueueMultipleElemInMutex,
+	kSimpleQueueSuperElem
+} tm_configuration_simple_queue_feature;
+
 /**
  * Настройки программы
  */
@@ -34,6 +40,7 @@ typedef struct _read_config_parameters_t {
 	int use_jemalloc;			/*!< Флаг использования jemalloc */
 	int use_libev;
 	int return_pointers_through_pipes;
+	tm_configuration_simple_queue_feature simple_queue_feature;
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */
