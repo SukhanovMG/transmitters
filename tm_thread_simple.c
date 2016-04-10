@@ -12,7 +12,7 @@
 #include <math.h>
 #include <tm_queue.h>
 
-#define DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD (10000)
+#define DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD (20000)
 
 typedef struct _tm_thread_t {
 	pthread_t thread;
@@ -219,32 +219,6 @@ TMThreadStatus tm_threads_work_simple()
 		if (current_time - work_threads.start_time >= (double) configuration.test_time)
 			break;
 		block = tm_block_create();
-		for (int i = 0; i < work_threads.threads_num; i++)
-		{
-			switch (configuration.simple_queue_feature) {
-				case kSimpleQueueOneElemInMutex:
-					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
-					{
-						client_block_array[0].block = tm_block_transfer_block(block);
-						client_block_array[0].client_id = j;
-
-						tm_queue_push_back(work_threads.threads[i].queue, client_block_array, 1);
-					}
-					break;
-				case kSimpleQueueMultipleElemInMutex:
-					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++) {
-						client_block_array[j].block = tm_block_transfer_block(block);
-						client_block_array[j].client_id = j;
-					}
-					tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
-					break;
-				case kSimpleQueueMultipleElemInMutexAndBalance:
-
-					break;
-				default:
-					break;
-			}
-		}
 
 		switch (configuration.simple_queue_feature) {
 			case kSimpleQueueOneElemInMutex:
@@ -277,9 +251,13 @@ TMThreadStatus tm_threads_work_simple()
 							client_block_array[client_id].block = tm_block_transfer_block(block);
 							client_block_array[client_id].client_id = client_id;
 						}
-						tm_queue_push_back(work_threads.threads[thread_id].queue, &client_block_array[start], work_threads.threads[thread_id].clients_count);
+						tm_queue_push_back(work_threads.threads[thread_id].queue, &client_block_array[start], part_size + remain_size);
 					}
 				}
+				break;
+			default:
+				TM_LOG_ERROR("Invalid simple queue feature.");
+				__sync_add_and_fetch(&tm_shutdown_flag, 1);
 				break;
 		}
 
