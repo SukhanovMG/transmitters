@@ -20,11 +20,8 @@ void tm_queue_destroy(tm_queue_ctx *q)
 	}
 }
 
-tm_queue_ctx *tm_queue_create(size_t elem_capacity)
+tm_queue_ctx *tm_queue_create()
 {
-	if (elem_capacity <= 0)
-		return NULL;
-
 	tm_queue_ctx *q = tm_calloc(sizeof(tm_queue_ctx));
 	if (!q){
 		return q;
@@ -40,8 +37,6 @@ tm_queue_ctx *tm_queue_create(size_t elem_capacity)
 		tm_queue_destroy(q);
 		return NULL;
 	}
-
-	q->elem_capacity = elem_capacity;
 
 	q->queue_elem_allocator.f_alloc = (tm_alloc_function) malloc;
 	q->queue_elem_allocator.f_free = (tm_free_function) free;
@@ -60,31 +55,11 @@ static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *client_bloc
 	if (!q || !client_block)
 		return 0;
 
-	elem = tm_calloc_custom(sizeof(tm_queue_elem_ctx) + sizeof(client_block_t), &q->queue_elem_allocator);
+	elem = tm_calloc_custom(sizeof(tm_queue_elem_ctx), &q->queue_elem_allocator);
 	if (!elem)
 		return 0;
 
-	elem->client_block[0] = *client_block;
-
-	DL_APPEND(q->head, elem);
-
-	return 1;
-}
-
-static int tm_queue_push_back_inner_capacity(tm_queue_ctx *q, client_block_t *client_block_array, int count)
-{
-	tm_queue_elem_ctx *elem = NULL;
-
-	if (!q || !client_block_array)
-		return 0;
-
-	elem = tm_calloc_custom(sizeof(tm_queue_elem_ctx) + q->elem_capacity * sizeof(client_block_t), &q->queue_elem_allocator);
-	if (!elem)
-		return 0;
-
-	for (int i = 0; i < count; i++) {
-		elem->client_block[i] = client_block_array[i];
-	}
+	elem->client_block = *client_block;
 
 	DL_APPEND(q->head, elem);
 
@@ -98,25 +73,11 @@ static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q)
 	if (q && q->head) {
 		elem = q->head;
 		DL_DELETE(q->head, elem);
-		client_block = elem->client_block[0];
+		client_block = elem->client_block;
 		tm_free_custom(elem, &q->queue_elem_allocator);
 	}
 
 	return client_block;
-}
-
-static int tm_queue_pop_front_inner_capacity(tm_queue_ctx *q, client_block_t *client_block_array, int count)
-{
-	tm_queue_elem_ctx *elem = NULL;
-	if (q && q->head) {
-		elem = q->head;
-		DL_DELETE(q->head, elem);
-		for (int i = 0; i < count; i++) {
-			client_block_array[i] = elem->client_block[i];
-		}
-		tm_free_custom(elem, &q->queue_elem_allocator);
-	}
-	return 1;
 }
 
 int tm_queue_push_back(tm_queue_ctx *q, client_block_t *client_block_array, int count)
@@ -127,19 +88,10 @@ int tm_queue_push_back(tm_queue_ctx *q, client_block_t *client_block_array, int 
 		return result;
 
 	pthread_mutex_lock(&q->mutex);
-	if (q->elem_capacity == 1) {
-		for (int i = 0; i < count; i++) {
-			result = tm_queue_push_back_inner(q, &client_block_array[i]);
-			if (result != 1)
-				break;
-		}
-	} else {
-		int number_of_elements = count / (int) q->elem_capacity;
-		int number_of_elements_rem = count % (int) q->elem_capacity;
-		for (int i = 0; i < number_of_elements - 1; i++) {
-			result = tm_queue_push_back_inner_capacity(q, client_block_array + i * q->elem_capacity, (int) q->elem_capacity);
-		}
-		result = tm_queue_push_back_inner_capacity(q, client_block_array + (number_of_elements - 1) * q->elem_capacity, number_of_elements_rem);
+	for (int i = 0; i < count; i++) {
+		result = tm_queue_push_back_inner(q, &client_block_array[i]);
+		if (result != 1)
+			break;
 	}
 	pthread_cond_signal(&q->cond);
 	pthread_mutex_unlock(&q->mutex);
@@ -164,18 +116,11 @@ int tm_queue_pop_front(tm_queue_ctx *q, client_block_t *client_block_array, int 
 		}
 	}
 
-	if (q->elem_capacity == 1) {
-		result = 1;
-		for (int i = 0; i < count; i++) {
-			client_block_array[i] = tm_queue_pop_front_inner(q);
-			if (client_block_array[i].block == NULL)
-				break;
-		}
-	} else {
-		int number_of_elements = count / (int) q->elem_capacity;
-		for (int i = 0; i < number_of_elements ; i++) {
-			result = tm_queue_pop_front_inner_capacity(q, client_block_array + i * q->elem_capacity, (int) q->elem_capacity);
-		}
+	result = 1;
+	for (int i = 0; i < count; i++) {
+		client_block_array[i] = tm_queue_pop_front_inner(q);
+		if (client_block_array[i].block == NULL)
+			break;
 	}
 	pthread_mutex_unlock(&q->mutex);
 	return result;

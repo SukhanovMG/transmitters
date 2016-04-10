@@ -66,16 +66,11 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 	int pthread_create_ret;
-	size_t queue_elem_capacity = 1;
 
 	if (!thread)
 		return status;
 
-	if (configuration.simple_queue_feature ==kSimpleQueueSuperElem && thread->clients_count > 50000) {
-		queue_elem_capacity = 1000;
-	}
-
-	thread->queue = tm_queue_create(queue_elem_capacity);
+	thread->queue = tm_queue_create();
 	if(!thread->queue)
 		return status;
 
@@ -225,7 +220,6 @@ TMThreadStatus tm_threads_work_simple()
 					}
 					break;
 				case kSimpleQueueMultipleElemInMutex:
-				case kSimpleQueueSuperElem:
 					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
 					{
 						client_block_array[j].block = tm_block_transfer_block(block);
