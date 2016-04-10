@@ -167,8 +167,13 @@ ConfigurationStatus tm_configuration_configure(void)
 		goto read_config_error;
 	}
 
-	TM_LOG_TRACE("%d clients. %d threads. %d kb/s; max diff %lf kb/s (%d%%)", configuration.clients_count, configuration.work_threads_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
-	TM_LOG_TRACE("copy: %d; mempool: %d; jemalloc: %d; libev: %d; return: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc, configuration.use_libev, configuration.return_pointers_through_pipes);
+	TM_LOG_TRACE("%d clients. %d threads. %d kb/s; max diff %lf kb/s (%d%%)",
+				 configuration.clients_count, configuration.work_threads_count, configuration.bitrate,
+				 configuration.bitrate_diff, configuration.bitrate_diff_percent);
+
+	TM_LOG_TRACE("copy: %d; mempool: %d; jemalloc: %d; libev: %d; return: %d; qfeature: %d",
+				 configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc,
+				 configuration.use_libev, configuration.return_pointers_through_pipes, configuration.simple_queue_feature);
 
 	return ConfigurationStatus_SUCCESS;
 
