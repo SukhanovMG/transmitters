@@ -34,6 +34,26 @@ add_custom_command(
     DEPENDS ${LIBJEMALLOC_DST_DIR}/Makefile
 )
 
+# Сборка tcmalloc
+add_custom_target(
+        libgperftools
+        DEPENDS ${LIBGPERFTOOLS_DST_DIR}/.libs/libprofiler.so
+)
+add_custom_command(
+        OUTPUT ${LIBGPERFTOOLS_DST_DIR}/configure
+        COMMAND tar -xzf "${LIBGPERFTOOLS_SRC_DIR}/gperftools.tar.gz" --directory "${CMAKE_BINARY_DIR}/libs/" && cd "${CMAKE_BINARY_DIR}/libs/gperftools" && ./autogen.sh
+)
+add_custom_command(
+        OUTPUT ${LIBGPERFTOOLS_DST_DIR}/Makefile
+        COMMAND cd ${LIBGPERFTOOLS_DST_DIR} && ${LIBGPERFTOOLS_DST_DIR}/configure -q > ${CMAKE_BINARY_DIR}/gperftools.log 2>&1
+        DEPENDS ${LIBGPERFTOOLS_DST_DIR}/configure
+)
+add_custom_command(
+        OUTPUT ${LIBGPERFTOOLS_DST_DIR}/.libs/libprofiler.so
+        COMMAND cd ${LIBGPERFTOOLS_DST_DIR} && make clean > /dev/null 2>&1 && make > ${CMAKE_BINARY_DIR}/gperftools.log 2>&1
+        DEPENDS ${LIBGPERFTOOLS_DST_DIR}/Makefile
+)
+
 add_library(COMMON_MODULES OBJECT
     tm_alloc.c
     tm_configuration.c
@@ -45,4 +65,4 @@ add_library(COMMON_MODULES OBJECT
     tm_mempool.c
 )
 
-add_dependencies(COMMON_MODULES libconfig libjemalloc)
+add_dependencies(COMMON_MODULES libconfig libjemalloc libgperftools)

@@ -18,24 +18,20 @@ endif()
 # Поиск необходимых пакетов
 find_package(Pthread REQUIRED)
 find_package(LibEV REQUIRED)
-find_package(Gperftools)
-
-if (GPERFTOOLS_FOUND AND WITH_PERF_TOOLS)
-	message("===== Building with GOOGLE PERFORMANCE TOOLS =====")
-	set(PERFORMANCE_LIBS ${GPERFTOOLS_LIBRARIES})
-endif (GPERFTOOLS_FOUND AND WITH_PERF_TOOLS)
 
 # Флаги
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fno-strict-aliasing -std=gnu99")
-
 
 message(STATUS "~~~~~~~~~~~~~~~~~~ BUILD TYPE '${CMAKE_BUILD_TYPE}' ~~~~~~~~~~~~~~~~~~")
 
 set(LIBCONFIG_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common/libs/libconfig")
 set(LIBCONFIG_DST_DIR "${CMAKE_BINARY_DIR}/libs/libconfig")
 
-set(LIBJEMALLOC_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common/libs/jemalloc")
+set(LIBJEMALLOC_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common/libs")
 set(LIBJEMALLOC_DST_DIR "${CMAKE_BINARY_DIR}/libs/jemalloc")
+
+set(LIBGPERFTOOLS_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common/libs")
+set(LIBGPERFTOOLS_DST_DIR "${CMAKE_BINARY_DIR}/libs/gperftools")
 
 include_directories("${LIBCONFIG_DST_DIR}/lib")
 include_directories("${LIBJEMALLOC_DST_DIR}/include")
@@ -94,11 +90,31 @@ configure_file("testall_new.sh" "${EXECUTABLE_OUTPUT_PATH}/testall_new.sh" COPYO
 set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c)
 
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
+add_executable("${CMAKE_PROJECT_NAME}_tcmalloc" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
+add_executable("${CMAKE_PROJECT_NAME}_profiling" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"
                                             rt # Исправить!!!!
                                             ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
                                             ${LIBEV_LIBRARIES}
-                                            ${PERFORMANCE_LIBS}
                                             )
+
+target_link_libraries("${CMAKE_PROJECT_NAME}_tcmalloc"
+		rt # Исправить!!!!
+		${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
+		${PTHREAD_LIBRARIES}
+		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+		${LIBEV_LIBRARIES}
+		${LIBGPERFTOOLS_DST_DIR}/.libs/libtcmalloc_minimal.so
+		)
+
+target_link_libraries("${CMAKE_PROJECT_NAME}_profiling"
+		rt # Исправить!!!!
+		${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
+		${PTHREAD_LIBRARIES}
+		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+		${LIBEV_LIBRARIES}
+		${LIBGPERFTOOLS_DST_DIR}/.libs/libtcmalloc_and_profiler.so
+		)
+
