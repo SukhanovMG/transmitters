@@ -12,6 +12,8 @@
 #include <math.h>
 #include <tm_queue.h>
 
+#define DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD (10000)
+
 typedef struct _tm_thread_t {
 	pthread_t thread;
 	tm_queue_ctx *queue;
@@ -24,6 +26,7 @@ typedef struct _tm_threads_t {
 	tm_thread_t *threads;
 	int threads_num;
 	double start_time;
+	int clients_parts_count;
 } tm_threads_t;
 
 
@@ -131,19 +134,28 @@ TMThreadStatus tm_threads_init_simple(int count)
 	if(count < 1)
 		return status;
 
+	work_threads.clients_parts_count = 1;
 	work_threads.threads_num = 0;
 	work_threads.threads = tm_calloc(count * sizeof(tm_thread_t));
 
 	if(!work_threads.threads)
 		return status;
 
-	for(int i = 0; i < count; i++)
-	{
+	for(int i = 0; i < count; i++) {
 		work_threads.threads[i].clients_count = configuration.clients_count / count;
 	}
-	for(int i = 0; i < configuration.clients_count % count; i++)
-	{
+	for(int i = 0; i < configuration.clients_count % count; i++) {
 		work_threads.threads[i].clients_count++;
+	}
+
+	if (work_threads.threads[count - 1].clients_count > DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD) {
+		int divided = work_threads.threads[count - 1].clients_count / DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD;
+		int remain = work_threads.threads[count - 1].clients_count % DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD;
+		int parts = divided;
+		if ((double)remain > 0.25 * DIVIDE_CLIENTS_INTO_PARTS_THRESHOLD) {
+			parts++;
+		}
+		work_threads.clients_parts_count = parts;
 	}
 
 	for(int i = 0; i < count; i++)
@@ -220,17 +232,57 @@ TMThreadStatus tm_threads_work_simple()
 					}
 					break;
 				case kSimpleQueueMultipleElemInMutex:
-					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
-					{
+					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++) {
 						client_block_array[j].block = tm_block_transfer_block(block);
 						client_block_array[j].client_id = j;
 					}
 					tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
 					break;
+				case kSimpleQueueMultipleElemInMutexAndBalance:
+
+					break;
 				default:
 					break;
 			}
 		}
+
+		switch (configuration.simple_queue_feature) {
+			case kSimpleQueueOneElemInMutex:
+				for (int i = 0; i < work_threads.threads_num; i++) {
+					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++) {
+						client_block_array[0].block = tm_block_transfer_block(block);
+						client_block_array[0].client_id = j;
+						tm_queue_push_back(work_threads.threads[i].queue, client_block_array, 1);
+					}
+				}
+				break;
+			case kSimpleQueueMultipleElemInMutex:
+				for (int i = 0; i < work_threads.threads_num; i++) {
+					for (size_t j = 0; j < work_threads.threads[i].clients_count; j++) {
+						client_block_array[j].block = tm_block_transfer_block(block);
+						client_block_array[j].client_id = j;
+					}
+					tm_queue_push_back(work_threads.threads[i].queue, client_block_array, work_threads.threads[i].clients_count);
+				}
+				break;
+			case kSimpleQueueMultipleElemInMutexAndBalance:
+				for (int clients_part_id = 0; clients_part_id < work_threads.clients_parts_count; clients_part_id++) {
+					for (int thread_id = 0; thread_id < work_threads.threads_num; thread_id++) {
+						size_t part_size = (size_t) work_threads.threads[thread_id].clients_count / work_threads.clients_parts_count;
+						size_t start = clients_part_id * part_size;
+						size_t remain_size = 0;
+						if (clients_part_id == (work_threads.clients_parts_count - 1))
+							remain_size = (size_t) work_threads.threads[thread_id].clients_count % work_threads.clients_parts_count;
+						for (size_t client_id = start; client_id < start + part_size + remain_size; client_id++) {
+							client_block_array[client_id].block = tm_block_transfer_block(block);
+							client_block_array[client_id].client_id = client_id;
+						}
+						tm_queue_push_back(work_threads.threads[thread_id].queue, &client_block_array[start], work_threads.threads[thread_id].clients_count);
+					}
+				}
+				break;
+		}
+
 		tm_block_dispose_block(block);
 		time_after_work = tm_time_get_current_ntime();
 		diff = (useconds_t)((time_after_work - current_time) * 1000000);

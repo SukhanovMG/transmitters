@@ -29,5 +29,5 @@ ReturnPointersThroughPipes = @FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES@
 
 # kSimpleQueueOneElemInMutex = 0
 # kSimpleQueueMultipleElemInMutex = 1
-# kSimpleQueueSuperElem = 2
+# kSimpleQueueMultipleElemInMutexAndBalance = 2
 SimpleQueueFeature = 1

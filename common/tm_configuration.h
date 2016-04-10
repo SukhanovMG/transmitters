@@ -18,7 +18,7 @@ typedef enum _ConfigurationStatus {
 typedef enum {
 	kSimpleQueueOneElemInMutex = 0,
 	kSimpleQueueMultipleElemInMutex,
-	kSimpleQueueSuperElem
+	kSimpleQueueMultipleElemInMutexAndBalance
 } tm_configuration_simple_queue_feature;
 
 /**
