@@ -94,6 +94,7 @@ add_executable("${CMAKE_PROJECT_NAME}_tcmalloc" ${SRC} $<TARGET_OBJECTS:COMMON_M
 add_executable("${CMAKE_PROJECT_NAME}_profiling" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"
                                             rt # Исправить!!!!
+                                            ${LIBHL_DST_DIR}/build/libhl.a
                                             ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
                                             ${PTHREAD_LIBRARIES}
                                             ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a

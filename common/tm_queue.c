@@ -1,128 +1,127 @@
 #include "tm_queue.h"
-#include <stdlib.h>
+#include "tm_queue_simple.h"
+#include "tm_queue_rbuf.h"
 #include "tm_alloc.h"
 #include "tm_configuration.h"
+#include <stdlib.h>
 #include <uthash/utlist.h>
 #include <jemalloc/jemalloc.h>
 
-static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q);
-static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *block_queue_elem);
+typedef void *          (*queue_backend_create)    (tm_allocator);
+typedef void            (*queue_backend_destroy)   (void *);
+typedef int             (*queue_backend_push_back) (void *, client_block_t *);
+typedef client_block_t  (*queue_backend_pop_front) (void *);
+typedef int             (*queue_backend_is_empty)  (void *);
 
-void tm_queue_destroy(tm_queue_ctx *q)
+#define SIMPLE_QUEUE_BACKEND(backend) \
+do { \
+	backend.ctx = NULL; \
+	backend.create_func = (queue_backend_create) tm_queue_create_simple; \
+	backend.destroy_func = (queue_backend_destroy) tm_queue_destroy_simple; \
+	backend.push_back_func = (queue_backend_push_back) tm_queue_push_back_simple; \
+	backend.pop_front_func = (queue_backend_pop_front) tm_queue_pop_front_simple; \
+	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_simple; \
+} while (0)
+
+#define RBUF_QUEUE_BACKEND(backend) \
+do { \
+	backend.ctx = NULL; \
+	backend.create_func = (queue_backend_create) tm_queue_create_rbuf; \
+	backend.destroy_func = (queue_backend_destroy) tm_queue_destroy_rbuf; \
+	backend.push_back_func = (queue_backend_push_back) tm_queue_push_back_rbuf; \
+	backend.pop_front_func = (queue_backend_pop_front) tm_queue_pop_front_rbuf; \
+	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_rbuf; \
+} while (0)
+
+typedef struct _queue_ctx {
+	struct {
+		void *ctx;
+		queue_backend_create create_func;
+		queue_backend_destroy destroy_func;
+		queue_backend_push_back push_back_func;
+		queue_backend_pop_front pop_front_func;
+		queue_backend_is_empty is_empty_func;
+	} backend;
+
+	tm_queue_type queue_type;
+	tm_allocator queue_elem_allocator;
+} queue_ctx;
+
+tm_queue_ctx *tm_queue_create(tm_queue_type type)
 {
+	queue_ctx *q = tm_calloc(sizeof(queue_ctx));
 	if (q) {
-		while (q->head) {
-			tm_queue_pop_front_inner(q);
+		TM_ALLOCATOR_MALLOC(q->queue_elem_allocator);
+		if (configuration.use_jemalloc)
+			TM_ALLOCATOR_JEMALLOC(q->queue_elem_allocator);
+
+		q->queue_type = type;
+		switch(type) {
+			case kTmQueueSimple:
+				SIMPLE_QUEUE_BACKEND(q->backend);
+				break;
+			case kTmQueueRbuf:
+				RBUF_QUEUE_BACKEND(q->backend);
+				break;
+			default:
+				SIMPLE_QUEUE_BACKEND(q->backend);
+				break;
 		}
-		pthread_cond_destroy(&q->cond);
-		pthread_mutex_destroy(&q->mutex);
+
+		q->backend.ctx = q->backend.create_func(q->queue_elem_allocator);
+		if (!q->backend.ctx) {
+			free(q);
+			q = NULL;
+		}
+	}
+
+	return (tm_queue_ctx *) q;
+}
+
+void tm_queue_destroy(tm_queue_ctx *_q)
+{
+	queue_ctx *q = (queue_ctx *) _q;
+	if (q) {
+		if (q->backend.destroy_func)
+			q->backend.destroy_func(q->backend.ctx);
 		tm_free(q);
 	}
 }
 
-tm_queue_ctx *tm_queue_create()
+int tm_queue_push_back(tm_queue_ctx *_q, client_block_t *client_block_array, int count)
 {
-	tm_queue_ctx *q = tm_calloc(sizeof(tm_queue_ctx));
-	if (!q){
-		return q;
-	}
-
-	if(pthread_mutex_init(&q->mutex, NULL) != 0)
-	{
-		tm_queue_destroy(q);
-		return NULL;
-	}
-	if (pthread_cond_init(&q->cond, NULL) != 0)
-	{
-		tm_queue_destroy(q);
-		return NULL;
-	}
-
-	q->queue_elem_allocator.f_alloc = (tm_alloc_function) malloc;
-	q->queue_elem_allocator.f_free = (tm_free_function) free;
-	if (configuration.use_jemalloc) {
-		q->queue_elem_allocator.f_alloc = (tm_alloc_function) je_malloc;
-		q->queue_elem_allocator.f_free = (tm_free_function) je_free;
-	}
-
-	return q;
-}
-
-static int tm_queue_push_back_inner(tm_queue_ctx *q, client_block_t *client_block)
-{
-	tm_queue_elem_ctx *elem = NULL;
-
-	if (!q || !client_block)
-		return 0;
-
-	elem = tm_calloc_custom(sizeof(tm_queue_elem_ctx), &q->queue_elem_allocator);
-	if (!elem)
-		return 0;
-
-	elem->client_block = *client_block;
-
-	DL_APPEND(q->head, elem);
-
-	return 1;
-}
-
-static client_block_t tm_queue_pop_front_inner(tm_queue_ctx *q)
-{
-	tm_queue_elem_ctx *elem = NULL;
-	client_block_t client_block = { NULL, 0 };
-	if (q && q->head) {
-		elem = q->head;
-		DL_DELETE(q->head, elem);
-		client_block = elem->client_block;
-		tm_free_custom(elem, &q->queue_elem_allocator);
-	}
-
-	return client_block;
-}
-
-int tm_queue_push_back(tm_queue_ctx *q, client_block_t *client_block_array, int count)
-{
+	queue_ctx *q = (queue_ctx *) _q;
 	int result = 0;
 
-	if (!q || !client_block_array || count <= 0)
-		return result;
-
-	pthread_mutex_lock(&q->mutex);
-	for (int i = 0; i < count; i++) {
-		result = tm_queue_push_back_inner(q, &client_block_array[i]);
-		if (result != 1)
-			break;
-	}
-	pthread_cond_signal(&q->cond);
-	pthread_mutex_unlock(&q->mutex);
-
-	return result;
-}
-
-int tm_queue_pop_front(tm_queue_ctx *q, client_block_t *client_block_array, int count)
-{
-	int result = 0;
-
-	if (!q || !client_block_array || count <= 0)
-		return result;
-
-	pthread_mutex_lock(&q->mutex);
-	while (!q->head) {
-		pthread_cond_wait(&q->cond, &q->mutex);
-		if (q->break_flag)
-		{
-			pthread_mutex_unlock(&q->mutex);
-			return result;
+	if (q && client_block_array && count > 0) {
+		for (int i = 0; i < count; i++ ) {
+			result = q->backend.push_back_func(q->backend.ctx, &client_block_array[i]);
+			if (result != 1) {
+				break;
+			}
 		}
 	}
-
-	result = 1;
-	for (int i = 0; i < count; i++) {
-		client_block_array[i] = tm_queue_pop_front_inner(q);
-		if (client_block_array[i].block == NULL)
-			break;
-	}
-	pthread_mutex_unlock(&q->mutex);
 	return result;
 }
 
+int tm_queue_pop_front(tm_queue_ctx *_q, client_block_t *client_block_array, int count)
+{
+	queue_ctx *q = (queue_ctx *) _q;
+	int result = 0;
+
+	if (q && client_block_array && count > 0) {
+		for (int i = 0; i < count; i++) {
+			client_block_array[i] = q->backend.pop_front_func(q->backend.ctx);
+			if (client_block_array[i].block == NULL)
+				break;
+		}
+		result = client_block_array[0].block != NULL;
+	}
+	return result;
+}
+
+int tm_queue_is_empty(tm_queue_ctx *_q)
+{
+	queue_ctx *q = (queue_ctx *) _q;
+	return q && q->backend.is_empty_func(q->backend.ctx);
+}
