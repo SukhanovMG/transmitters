@@ -1,5 +1,6 @@
 #include "tm_queue.h"
 #include "tm_queue_simple.h"
+#include "tm_queue_rbuf.h"
 #include "tm_alloc.h"
 #include "tm_configuration.h"
 #include <stdlib.h>
@@ -20,6 +21,16 @@ do { \
 	backend.push_back_func = (queue_backend_push_back) tm_queue_push_back_simple; \
 	backend.pop_front_func = (queue_backend_pop_front) tm_queue_pop_front_simple; \
 	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_simple; \
+} while (0)
+
+#define RBUF_QUEUE_BACKEND(backend) \
+do { \
+	backend.ctx = NULL; \
+	backend.create_func = (queue_backend_create) tm_queue_create_rbuf; \
+	backend.destroy_func = (queue_backend_destroy) tm_queue_destroy_rbuf; \
+	backend.push_back_func = (queue_backend_push_back) tm_queue_push_back_rbuf; \
+	backend.pop_front_func = (queue_backend_pop_front) tm_queue_pop_front_rbuf; \
+	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_rbuf; \
 } while (0)
 
 typedef struct _queue_ctx {
@@ -48,8 +59,13 @@ tm_queue_ctx *tm_queue_create(tm_queue_type type)
 		switch(type) {
 			case kTmQueueSimple:
 				SIMPLE_QUEUE_BACKEND(q->backend);
+				break;
+			case kTmQueueRbuf:
+				RBUF_QUEUE_BACKEND(q->backend);
+				break;
 			default:
 				SIMPLE_QUEUE_BACKEND(q->backend);
+				break;
 		}
 
 		q->backend.ctx = q->backend.create_func(q->queue_elem_allocator);
