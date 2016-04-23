@@ -34,6 +34,8 @@ typedef struct _read_config_parameters_t {
 	int use_jemalloc;			/*!< Флаг использования jemalloc */
 	int use_libev;
 	int return_pointers_through_pipes;
+	int optimize_refcount_use_by_copy;
+	int use_rbuf_instead_of_list;
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */

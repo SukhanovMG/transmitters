@@ -23,6 +23,10 @@ CopyBlockOnTransfer = @FOR_CONFIG_COPY_BLOCK_ON_TRANSFER@
 # Флаг использования jemalloc
 UseJeMalloc = @FOR_CONFIG_USE_JEMALLOC@
 
+OptimizeRefcountUseByCopy = false
+
+UseRbufInsteadOfList = false
+
 # Флаг использования libev
 UseLibev = @FOR_CONFIG_USE_LIBEV@
 ReturnPointersThroughPipes = @FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES@

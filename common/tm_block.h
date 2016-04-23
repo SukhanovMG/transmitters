@@ -20,7 +20,7 @@ void tm_block_fin();
 void tm_block_destroy(tm_block *block);
 void tm_block_destructor(void *obj);
 tm_block *tm_block_create();
-
+tm_block *tm_block_copy(tm_block *block);
 tm_block *tm_block_transfer_block(tm_block *block);
 void tm_block_dispose_block(tm_block *block);
 

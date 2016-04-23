@@ -100,7 +100,11 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 	if (!thread)
 		return status;
 
-	thread->queue = tm_queue_create(kTmQueueRbuf);
+	if (configuration.use_rbuf_instead_of_list)
+		thread->queue = tm_queue_create(kTmQueueRbuf);
+	else
+		thread->queue = tm_queue_create(kTmQueueSimple);
+
 	if(!thread->queue)
 		return status;
 
@@ -243,6 +247,11 @@ TMThreadStatus tm_threads_work_simple()
 		block = tm_block_create();
 		for (int i = 0; i < work_threads.threads_num; i++)
 		{
+			if (configuration.optimize_refcount_use_by_copy && i != 0) {
+				tm_block *tmp = tm_block_copy(block);
+				tm_block_dispose_block(block);
+				block = tmp;
+			}
 			for (size_t j = 0; j < work_threads.threads[i].clients_count; j++)
 			{
 				client_block_array[j].block = tm_block_transfer_block(block);
