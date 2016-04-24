@@ -25,6 +25,8 @@ UseJeMalloc = @FOR_CONFIG_USE_JEMALLOC@
 
 OptimizeRefcountUseByCopy = false
 
+RefCountWithMutex = false
+
 UseRbufInsteadOfList = false
 
 # Флаг использования libev

@@ -1,24 +1,69 @@
 #include "tm_refcount.h"
 #include "syslog.h"
 #include "tm_logging.h"
+#include "tm_configuration.h"
 
 inline void tm_refcount_init(tm_refcount *refcount_ctx, tm_refcount_destructor destructor)
 {
 	refcount_ctx->counter = 1;
 	refcount_ctx->destructor = destructor;
+	if (configuration.refcount_with_mutex) {
+		pthread_mutex_init(&refcount_ctx->mutex, NULL);
+		refcount_ctx->w_mutex = 1;
+	}
 }
 
+inline void tm_refcount_destroy(tm_refcount *refcount_ctx)
+{
+	if (configuration.refcount_with_mutex)
+		pthread_mutex_destroy(&refcount_ctx->mutex);
+}
+
+static void retain_w_atomic(tm_refcount *refcount_ctx)
+{
+	__sync_fetch_and_add(&refcount_ctx->counter, 1);
+}
+
+static void retain_w_mutex(tm_refcount *refcount_ctx)
+{
+	pthread_mutex_lock(&refcount_ctx->mutex);
+	refcount_ctx->counter++;
+	pthread_mutex_unlock(&refcount_ctx->mutex);
+}
 
 static void *inner_tm_refcount_retain(void *obj, int thread_safe)
 {
 	tm_refcount *refcount_ctx = (tm_refcount*)obj;
 	if (refcount_ctx) {
-		if (thread_safe)
-			__sync_add_and_fetch(&refcount_ctx->counter, 1);
+		if (thread_safe) {
+			if (refcount_ctx->w_mutex)
+				retain_w_mutex(refcount_ctx);
+			else
+				retain_w_atomic(refcount_ctx);
+		}
 		else
 			refcount_ctx->counter++;
 	}
 	return refcount_ctx;
+}
+
+static void release_w_atomic(tm_refcount *refcount_ctx)
+{
+	if (__sync_sub_and_fetch(&refcount_ctx->counter, 1) == 0) {
+		if (refcount_ctx->destructor)
+			refcount_ctx->destructor((void*)refcount_ctx);
+	}
+}
+
+static void release_w_mutex(tm_refcount* refcount_ctx)
+{
+	pthread_mutex_lock(&refcount_ctx->mutex);
+	unsigned int cnt = --refcount_ctx->counter;
+	pthread_mutex_unlock(&refcount_ctx->mutex);
+	if (cnt == 0) {
+		if (refcount_ctx->destructor)
+			refcount_ctx->destructor((void*)refcount_ctx);
+	}
 }
 
 static void inner_tm_refcount_release(void *obj, int thread_safe)
@@ -27,10 +72,10 @@ static void inner_tm_refcount_release(void *obj, int thread_safe)
 	if (refcount_ctx)
 	{
 		if (thread_safe) {
-			if (__sync_sub_and_fetch(&refcount_ctx->counter, 1) == 0) {
-				if (refcount_ctx->destructor)
-					refcount_ctx->destructor(obj);
-			}
+			if (refcount_ctx->w_mutex)
+				release_w_mutex(refcount_ctx);
+			else
+				release_w_atomic(refcount_ctx);
 		} else {
 			if (--refcount_ctx->counter == 0) {
 				if (refcount_ctx->destructor)

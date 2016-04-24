@@ -167,13 +167,18 @@ ConfigurationStatus tm_configuration_configure(void)
 		goto read_config_error;
 	}
 
-	if (!config_lookup_bool(&cfg, "UseRbufInsteadOfList", &configuration.use_rbuf_instead_of_list)) {
+	if (!config_lookup_bool(&cfg, "OptimizeRefcountUseByCopy", &configuration.optimize_refcount_use_by_copy)) {
+		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
+		goto read_config_error;
+	}
+
+	if (!config_lookup_bool(&cfg, "RefCountWithMutex", &configuration.refcount_with_mutex)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}
 
 	TM_LOG_TRACE("%d clients. %d threads. %d kb/s; max diff %.2lf kb/s (%d%%)", configuration.clients_count, configuration.work_threads_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
-	TM_LOG_TRACE("copy: %d; pool: %d; je: %d; refcnt_opt: %d; q: %s; libev: %d; return: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc, configuration.optimize_refcount_use_by_copy, configuration.use_rbuf_instead_of_list ? "rbuf" : "list", configuration.use_libev, configuration.return_pointers_through_pipes);
+	TM_LOG_TRACE("cp: %d; pool: %d; je: %d; refcnt_opt: %d; refcnt_mutex: %d; q: %s; libev: %d; return: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.use_jemalloc, configuration.optimize_refcount_use_by_copy, configuration.refcount_with_mutex, configuration.use_rbuf_instead_of_list ? "rbuf" : "list", configuration.use_libev, configuration.return_pointers_through_pipes);
 
 	return ConfigurationStatus_SUCCESS;
 

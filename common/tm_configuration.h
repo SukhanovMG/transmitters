@@ -35,6 +35,7 @@ typedef struct _read_config_parameters_t {
 	int use_libev;
 	int return_pointers_through_pipes;
 	int optimize_refcount_use_by_copy;
+	int refcount_with_mutex;
 	int use_rbuf_instead_of_list;
 } read_config_parameters_t;
 
