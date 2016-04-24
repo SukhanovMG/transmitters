@@ -162,7 +162,7 @@ ConfigurationStatus tm_configuration_configure(void)
 		goto read_config_error;
 	}
 
-	if (!config_lookup_bool(&cfg, "OptimizeRefcountUseByCopy", &configuration.optimize_refcount_use_by_copy)) {
+	if (!config_lookup_bool(&cfg, "UseRbufInsteadOfList", &configuration.use_rbuf_instead_of_list)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}
