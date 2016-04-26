@@ -1,6 +1,8 @@
 #ifndef TM_CONFIGURATION_H_
 #define TM_CONFIGURATION_H_
 
+#include "tm_queue.h"
+
 #include <libconfig.h>
 #include <inttypes.h>
 #include <linux/limits.h>
@@ -36,7 +38,7 @@ typedef struct _read_config_parameters_t {
 	int return_pointers_through_pipes;
 	int optimize_refcount_use_by_copy;
 	int refcount_with_mutex;
-	int use_rbuf_instead_of_list;
+	tm_queue_type queue_type;
 } read_config_parameters_t;
 
 extern read_config_parameters_t configuration; /*!< Настройки программы */

@@ -125,3 +125,19 @@ int tm_queue_is_empty(tm_queue_ctx *_q)
 	queue_ctx *q = (queue_ctx *) _q;
 	return q && q->backend.is_empty_func(q->backend.ctx);
 }
+
+const char *tm_queue_type_to_str(tm_queue_type type)
+{
+	switch(type) {
+		case kQueueTypeSimple:
+			return "list";
+		case kQueueTypeSimple:
+			return "list_pool";
+		case kQueueTypeRbuf:
+			return "rbuf";
+		case kQueueTypeLockLess:
+			return "lockless";
+		default:
+			return "unknown";
+	}
+}

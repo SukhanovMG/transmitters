@@ -1,5 +1,6 @@
 #include "tm_queue_simple.h"
 #include "tm_configuration.h"
+#include "tm_mempool.h"
 #include <uthash/utlist.h>
 
 typedef struct _queue_elem_simple {
@@ -11,6 +12,7 @@ typedef struct _queue_elem_simple {
 typedef struct _queue_simple {
 	queue_elem_simple *head;
 	tm_allocator queue_elem_allocator;
+	tm_mempool *pool;	
 } queue_simple;
 
 //static client_block_t tm_queue_pop_front_simple(void *_q);
@@ -31,10 +33,16 @@ void *tm_queue_create_simple(tm_allocator allocator)
 {
 	queue_simple *q = tm_calloc(sizeof(queue_simple));
 	if (!q){
-		return q;
+		return NULL;
 	}
-
+	
+	if (configuration.queue_type == k)	
 	q->queue_elem_allocator = allocator;
+	q->pool = tm_mempool_new(sizeof(queue_elem_simple), 100000, 1);
+	if (!pool) {
+		tm_free(q);
+		return NULL;
+	}
 	return (void *) q;
 }
 
