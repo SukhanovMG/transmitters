@@ -7,7 +7,7 @@
 #include <uthash/utlist.h>
 #include <jemalloc/jemalloc.h>
 
-typedef void *          (*queue_backend_create)    (tm_allocator);
+typedef void *          (*queue_backend_create)    (void);
 typedef void            (*queue_backend_destroy)   (void *);
 typedef int             (*queue_backend_push_back) (void *, client_block_t *);
 typedef client_block_t  (*queue_backend_pop_front) (void *);
@@ -44,17 +44,12 @@ typedef struct _queue_ctx {
 	} backend;
 
 	tm_queue_type queue_type;
-	tm_allocator queue_elem_allocator;
 } queue_ctx;
 
 tm_queue_ctx *tm_queue_create(tm_queue_type type)
 {
 	queue_ctx *q = tm_calloc(sizeof(queue_ctx));
 	if (q) {
-		TM_ALLOCATOR_MALLOC(q->queue_elem_allocator);
-		if (configuration.use_jemalloc)
-			TM_ALLOCATOR_JEMALLOC(q->queue_elem_allocator);
-
 		q->queue_type = type;
 		switch(type) {
 			case kTmQueueSimple:
@@ -68,7 +63,7 @@ tm_queue_ctx *tm_queue_create(tm_queue_type type)
 				break;
 		}
 
-		q->backend.ctx = q->backend.create_func(q->queue_elem_allocator);
+		q->backend.ctx = q->backend.create_func();
 		if (!q->backend.ctx) {
 			free(q);
 			q = NULL;

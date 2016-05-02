@@ -31,7 +31,6 @@ typedef struct _read_config_parameters_t {
 	int test_time;				/*!< Время в секундах, в течении которого проводится тест, т.е. работает программа. Если битрейт это время был достаточен, то программа успешно завершается */
 	int use_mempool;			/*!< Флаг использования пула */
 	int copy_block_on_transfer;	/*!< Флаг копирования блока при передаче от главного потока к рабочему */
-	int use_jemalloc;			/*!< Флаг использования jemalloc */
 	int use_libev;
 	int return_pointers_through_pipes;
 	int optimize_refcount_use_by_copy;

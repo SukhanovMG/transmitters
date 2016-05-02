@@ -23,7 +23,6 @@
 
 
 static tm_mempool* mempool = NULL;
-static tm_allocator allocator;
 static size_t block_size;
 static int thread_safe = 1;
 
@@ -38,16 +37,6 @@ int tm_block_init()
 		mempool = tm_mempool_new(block_size, 1000, thread_safe);
 		if (!mempool)
 			result = 0;
-	}
-
-	if (result) {
-		allocator.f_alloc = (tm_alloc_function) malloc;
-		allocator.f_free = (tm_free_function) free;
-
-		if (configuration.use_jemalloc) {
-			allocator.f_alloc = (tm_alloc_function) je_malloc;
-			allocator.f_free = (tm_free_function) je_free;
-		}
 	}
 
 	return result;
@@ -69,7 +58,7 @@ inline void tm_block_destroy(tm_block *block)
 	if (configuration.use_mempool && mempool)
 		tm_mempool_return(mempool, (void *) block);
 	else
-		tm_free_custom(block, &allocator);
+		tm_free(block);
 
 	TM_LOG_DTRACE("Block %p destroyed", block);
 }
@@ -87,7 +76,7 @@ tm_block *tm_block_create()
 		block = (tm_block*) tm_mempool_get(mempool);
 	}
 	else {
-		block = (tm_block*) tm_calloc_custom(block_size, &allocator);
+		block = (tm_block*) tm_calloc(block_size);
 	}
 	tm_refcount_init((tm_refcount*)block, tm_block_destructor);
 	TM_LOG_DTRACE("Block %p created", block);

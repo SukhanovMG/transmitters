@@ -21,7 +21,7 @@ void tm_queue_destroy_rbuf(void *_q)
 	}
 }
 
-void *tm_queue_create_rbuf(tm_allocator allocator)
+void *tm_queue_create_rbuf()
 {
 	queue_rbuf *q = tm_calloc(sizeof(queue_rbuf));
 	if (!q){

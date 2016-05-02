@@ -44,40 +44,19 @@ set(FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES "false")
 
 set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
 set(FOR_CONFIG_USE_MEMPOOL "false")
-set(FOR_CONFIG_USE_JEMALLOC "false")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_no_mempool_no_jemalloc" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
-set(FOR_CONFIG_USE_MEMPOOL "false")
-set(FOR_CONFIG_USE_JEMALLOC "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_no_mempool_jemalloc" @ONLY)
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_no_mempool" @ONLY)
 set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
 set(FOR_CONFIG_USE_MEMPOOL "true")
-set(FOR_CONFIG_USE_JEMALLOC "false")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_mempool_no_jemalloc" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
-set(FOR_CONFIG_USE_MEMPOOL "true")
-set(FOR_CONFIG_USE_JEMALLOC "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_mempool_jemalloc" @ONLY)
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_mempool" @ONLY)
 set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "true")
 set(FOR_CONFIG_USE_MEMPOOL "false")
-set(FOR_CONFIG_USE_JEMALLOC "false")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_no_mempool_no_jemalloc" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "true")
-set(FOR_CONFIG_USE_MEMPOOL "false")
-set(FOR_CONFIG_USE_JEMALLOC "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_no_mempool_jemalloc" @ONLY)
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_no_mempool" @ONLY)
 set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "true")
 set(FOR_CONFIG_USE_MEMPOOL "true")
-set(FOR_CONFIG_USE_JEMALLOC "false")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool_no_jemalloc" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "true")
-set(FOR_CONFIG_USE_MEMPOOL "true")
-set(FOR_CONFIG_USE_JEMALLOC "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool_jemalloc" @ONLY)
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool" @ONLY)
 
 set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
 set(FOR_CONFIG_USE_MEMPOOL "true")
-set(FOR_CONFIG_USE_JEMALLOC "false")
 set(FOR_CONFIG_USE_LIBEV "true")
 configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_libev_no_return" @ONLY)
 set(FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES "true")
@@ -90,17 +69,25 @@ configure_file("testall_new.sh" "${EXECUTABLE_OUTPUT_PATH}/testall_new.sh" COPYO
 set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c)
 
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
+add_executable("${CMAKE_PROJECT_NAME}_jemalloc" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 add_executable("${CMAKE_PROJECT_NAME}_tcmalloc" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 add_executable("${CMAKE_PROJECT_NAME}_profiling" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 target_link_libraries("${CMAKE_PROJECT_NAME}"
-                                            rt # Исправить!!!!
-                                            ${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
-                                            ${PTHREAD_LIBRARIES}
-                                            ${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
-                                            ${LIBEV_LIBRARIES}
-                                            )
+		rt # Исправить!!!!
+		${PTHREAD_LIBRARIES}
+		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+		${LIBEV_LIBRARIES}
+		)
 
 target_link_libraries("${CMAKE_PROJECT_NAME}_tcmalloc"
+		rt # Исправить!!!!
+		${PTHREAD_LIBRARIES}
+		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
+		${LIBEV_LIBRARIES}
+		${LIBGPERFTOOLS_DST_DIR}/.libs/libtcmalloc_minimal.so
+		)
+
+target_link_libraries("${CMAKE_PROJECT_NAME}_jemalloc"
 		rt # Исправить!!!!
 		${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
 		${PTHREAD_LIBRARIES}
@@ -111,7 +98,6 @@ target_link_libraries("${CMAKE_PROJECT_NAME}_tcmalloc"
 
 target_link_libraries("${CMAKE_PROJECT_NAME}_profiling"
 		rt # Исправить!!!!
-		${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
 		${PTHREAD_LIBRARIES}
 		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
 		${LIBEV_LIBRARIES}

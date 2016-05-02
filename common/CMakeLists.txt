@@ -25,7 +25,7 @@ add_custom_command(
 )
 add_custom_command(
     OUTPUT ${LIBJEMALLOC_DST_DIR}/Makefile
-    COMMAND cd ${LIBJEMALLOC_DST_DIR} && ${LIBJEMALLOC_DST_DIR}/configure -q --with-jemalloc-prefix="je_"  > /dev/null 2>&1
+    COMMAND cd ${LIBJEMALLOC_DST_DIR} && ${LIBJEMALLOC_DST_DIR}/configure -q > /dev/null 2>&1
     DEPENDS ${LIBJEMALLOC_DST_DIR}/configure
 )
 add_custom_command(

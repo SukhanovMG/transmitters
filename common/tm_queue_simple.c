@@ -10,7 +10,6 @@ typedef struct _queue_elem_simple {
 
 typedef struct _queue_simple {
 	queue_elem_simple *head;
-	tm_allocator queue_elem_allocator;
 } queue_simple;
 
 //static client_block_t tm_queue_pop_front_simple(void *_q);
@@ -27,14 +26,13 @@ void tm_queue_destroy_simple(void *_q)
 	}
 }
 
-void *tm_queue_create_simple(tm_allocator allocator)
+void *tm_queue_create_simple()
 {
 	queue_simple *q = tm_calloc(sizeof(queue_simple));
 	if (!q){
 		return q;
 	}
 
-	q->queue_elem_allocator = allocator;
 	return (void *) q;
 }
 
@@ -46,7 +44,7 @@ int tm_queue_push_back_simple(void *_q, client_block_t *client_block)
 	if (!q || !client_block)
 		return 0;
 
-	elem = tm_calloc_custom(sizeof(queue_elem_simple), &q->queue_elem_allocator);
+	elem = tm_calloc(sizeof(queue_elem_simple));
 	if (!elem)
 		return 0;
 
@@ -66,7 +64,7 @@ client_block_t tm_queue_pop_front_simple(void *_q)
 		elem = q->head;
 		DL_DELETE(q->head, elem);
 		client_block = elem->client_block;
-		tm_free_custom(elem, &q->queue_elem_allocator);
+		tm_free(elem);
 	}
 
 	return client_block;
