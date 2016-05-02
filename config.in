@@ -30,8 +30,6 @@ OptimizeRefcountUseByCopy = false
 
 RefCountWithMutex = false
 
-UseRbufInsteadOfList = false
-
 # Флаг использования libev
 UseLibev = @FOR_CONFIG_USE_LIBEV@
 ReturnPointersThroughPipes = @FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES@
