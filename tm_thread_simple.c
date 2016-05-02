@@ -100,11 +100,7 @@ static TMThreadStatus tm_thread_thread_create(tm_thread_t *thread)
 	if (!thread)
 		return status;
 
-	if (configuration.use_rbuf_instead_of_list)
-		thread->queue = tm_queue_create(kTmQueueRbuf);
-	else
-		thread->queue = tm_queue_create(kTmQueueSimple);
-
+	thread->queue = tm_queue_create(configuration.queue_type);
 	if(!thread->queue)
 		return status;
 

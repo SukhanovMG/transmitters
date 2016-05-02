@@ -157,7 +157,7 @@ ConfigurationStatus tm_configuration_configure(void)
 		goto read_config_error;
 	}
 
-	if (!config_lookup_int(&cfg, "QueueType", &configuration.queue_type)) {
+	if (!config_lookup_int(&cfg, "QueueType", (int*)&configuration.queue_type)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}

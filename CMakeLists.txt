@@ -93,7 +93,6 @@ target_link_libraries("${CMAKE_PROJECT_NAME}_jemalloc"
 		${PTHREAD_LIBRARIES}
 		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
 		${LIBEV_LIBRARIES}
-		${LIBGPERFTOOLS_DST_DIR}/.libs/libtcmalloc_minimal.so
 		)
 
 target_link_libraries("${CMAKE_PROJECT_NAME}_profiling"

@@ -14,9 +14,6 @@ typedef struct _queue_simple {
 	tm_mempool *pool;
 } queue_simple;
 
-//static client_block_t tm_queue_pop_front_simple(void *_q);
-//static int tm_queue_push_back_simple(void *_q, client_block_t *block_queue_elem);
-
 void tm_queue_destroy_simple(void *_q)
 {
 	queue_simple *q = (queue_simple *)_q;
@@ -24,6 +21,8 @@ void tm_queue_destroy_simple(void *_q)
 		while (q->head) {
 			tm_queue_pop_front_simple(q);
 		}
+		if (q->pool)
+			tm_mempool_delete(q->pool);
 		tm_free(q);
 	}
 }
@@ -34,10 +33,12 @@ void *tm_queue_create_simple()
 	if (!q){
 		return NULL;
 	}
-	q->pool = tm_mempool_new(sizeof(queue_elem_simple), 100000, 1);
-	if (!q->pool) {
-		tm_free(q);
-		return NULL;
+	if (configuration.queue_type == kTmQueueSimpleMempool) {
+		q->pool = tm_mempool_new(sizeof(queue_elem_simple), 100000, 1);
+		if (!q->pool) {
+			tm_free(q);
+			return NULL;
+		}
 	}
 	return (void *) q;
 }
@@ -50,7 +51,11 @@ int tm_queue_push_back_simple(void *_q, client_block_t *client_block)
 	if (!q || !client_block)
 		return 0;
 
-	elem = tm_calloc(sizeof(queue_elem_simple));
+	if (!q->pool)
+		elem = tm_calloc(sizeof(queue_elem_simple));
+	else
+		elem = tm_mempool_get(q->pool);
+
 	if (!elem)
 		return 0;
 
@@ -70,7 +75,10 @@ client_block_t tm_queue_pop_front_simple(void *_q)
 		elem = q->head;
 		DL_DELETE(q->head, elem);
 		client_block = elem->client_block;
-		tm_free(elem);
+		if (!q->pool)
+			tm_free(elem);
+		else
+			tm_mempool_return(q->pool, elem);
 	}
 
 	return client_block;

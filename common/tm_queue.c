@@ -53,6 +53,7 @@ tm_queue_ctx *tm_queue_create(tm_queue_type type)
 		q->queue_type = type;
 		switch(type) {
 			case kTmQueueSimple:
+			case kTmQueueSimpleMempool:
 				SIMPLE_QUEUE_BACKEND(q->backend);
 				break;
 			case kTmQueueRbuf:
@@ -124,13 +125,13 @@ int tm_queue_is_empty(tm_queue_ctx *_q)
 const char *tm_queue_type_to_str(tm_queue_type type)
 {
 	switch(type) {
-		case kQueueTypeSimple:
+		case kTmQueueSimple:
 			return "list";
-		case kQueueTypeSimple:
+		case kTmQueueSimpleMempool:
 			return "list_pool";
-		case kQueueTypeRbuf:
+		case kTmQueueRbuf:
 			return "rbuf";
-		case kQueueTypeLockLess:
+		case kTmQueueLockless:
 			return "lockless";
 		default:
 			return "unknown";

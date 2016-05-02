@@ -20,6 +20,12 @@ CopyBlockOnTransfer = @FOR_CONFIG_COPY_BLOCK_ON_TRANSFER@
 # Флаг использования пула предвыделенной памяти для блоков.
 UseMemPool = @FOR_CONFIG_USE_MEMPOOL@
 
+# kTmQueueSimple = 0
+# kTmQueueSimpleMempool = 1
+# kTmQueueRbuf = 2
+# kTmQueueLockless = 3
+QueueType = 0
+
 OptimizeRefcountUseByCopy = false
 
 RefCountWithMutex = false
