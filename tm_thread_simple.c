@@ -28,16 +28,22 @@ typedef struct _tm_threads_t {
 	double start_time;
 } tm_threads_t;
 
-#define NEED_TO_SHUTDOWN_THREAD(thread_ctx) (__sync_add_and_fetch(&thread_ctx->shutdown, 0))
-#define MARK_THREAD_FOR_SHUTDOWN(thread_ctx) \
-{ \
-	__sync_add_and_fetch(&thread_ctx->shutdown, 1); \
-	pthread_cond_signal(&thread_ctx->q_cond); \
-}
-
 static int tm_shutdown_flag = 0;
 static int tm_low_bitrate_flag = 0;
 static tm_threads_t work_threads;
+
+static int need_to_shutdown_thread(tm_thread_t *thread_ctx)
+{
+	return (thread_ctx != NULL) && (__sync_add_and_fetch(&thread_ctx->shutdown, 0) == 1);
+}
+
+static void mark_thread_for_shutdown(tm_thread_t *thread_ctx)
+{
+	if (thread_ctx) {
+		__sync_add_and_fetch(&thread_ctx->shutdown, 1);
+		pthread_cond_signal(&thread_ctx->q_cond);
+	}
+}
 
 static int tm_thread_pop_from_queue(tm_thread_t *thread_ctx, client_block_t *array, int count)
 {
@@ -46,7 +52,7 @@ static int tm_thread_pop_from_queue(tm_thread_t *thread_ctx, client_block_t *arr
 		pthread_mutex_lock(&thread_ctx->q_mutex);
 		while (tm_queue_is_empty(thread_ctx->queue)) {
 			pthread_cond_wait(&thread_ctx->q_cond, &thread_ctx->q_mutex);
-			if (NEED_TO_SHUTDOWN_THREAD(thread_ctx)) {
+			if (need_to_shutdown_thread(thread_ctx)) {
 				pthread_mutex_unlock(&thread_ctx->q_mutex);
 				return result;
 			}
@@ -70,7 +76,7 @@ static void tm_thread_function(void* thread)
 	tm_thread_t *thread_ctx = (tm_thread_t*)thread;
 	client_block_t *client_block_array = tm_calloc(128 * sizeof(client_block_t));
 
-	while(!NEED_TO_SHUTDOWN_THREAD(thread_ctx)) {
+	while(!need_to_shutdown_thread(thread_ctx)) {
 		if (tm_thread_pop_from_queue(thread_ctx, client_block_array, 128)) {
 			double cur_time = tm_time_get_current_ntime();
 			for (int i = 0; i < 128; i++) {
@@ -137,7 +143,7 @@ static TMThreadStatus tm_thread_thread_shutdown(tm_thread_t *thread)
 	if (!thread)
 		return status;
 
-	MARK_THREAD_FOR_SHUTDOWN(thread);
+	mark_thread_for_shutdown(thread);
 
 	pthread_join(thread->thread, &thread_status);
 	pthread_cond_destroy(&thread->q_cond);
