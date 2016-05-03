@@ -2,7 +2,7 @@
 
 #include "tm_configuration.h"
 
-#define RBUF_LENGTH 4000000
+#define RBUF_LENGTH 8000000
 
 typedef struct _queue_rbuf {
 	client_block_t *buffer;
