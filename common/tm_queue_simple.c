@@ -34,7 +34,7 @@ void *tm_queue_create_simple()
 		return NULL;
 	}
 	if (configuration.queue_type == kTmQueueSimpleMempool) {
-		q->pool = tm_mempool_new(sizeof(queue_elem_simple), 100000, 1);
+		q->pool = tm_mempool_new(sizeof(queue_elem_simple), 100000, 0);
 		if (!q->pool) {
 			tm_free(q);
 			return NULL;
