@@ -7,6 +7,7 @@ inline void tm_refcount_init(tm_refcount *refcount_ctx, tm_refcount_destructor d
 {
 	refcount_ctx->counter = 1;
 	refcount_ctx->destructor = destructor;
+	refcount_ctx->w_mutex = 0;
 	if (configuration.refcount_with_mutex) {
 		pthread_mutex_init(&refcount_ctx->mutex, NULL);
 		refcount_ctx->w_mutex = 1;
