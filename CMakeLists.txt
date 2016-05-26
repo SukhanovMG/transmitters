@@ -66,6 +66,7 @@ configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_pool_thread_libevpipe
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
 configure_file("testall_new.sh" "${EXECUTABLE_OUTPUT_PATH}/testall_new.sh" COPYONLY)
+configure_file("test_hardware.py" "${EXECUTABLE_OUTPUT_PATH}/test_hardware.py" COPYONLY)
 
 set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c tm_thread_events_queue.c)
 
