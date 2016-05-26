@@ -147,7 +147,7 @@ ConfigurationStatus tm_configuration_configure(void)
 		goto read_config_error;
 	}
 
-	if (!config_lookup_bool(&cfg, "UseLibev", &configuration.use_libev)) {
+	if (!config_lookup_int(&cfg, "ThreadModuleType", (int*)&configuration.thread_module_type)) {
 		TM_LOG_ERROR("Incomplete config file '%s'\n", configuration.config_file);
 		goto read_config_error;
 	}
@@ -173,7 +173,7 @@ ConfigurationStatus tm_configuration_configure(void)
 	}
 
 	TM_LOG_TRACE("%d clients. %d threads. %d kb/s; max diff %.2lf kb/s (%d%%)", configuration.clients_count, configuration.work_threads_count, configuration.bitrate, configuration.bitrate_diff, configuration.bitrate_diff_percent);
-	TM_LOG_TRACE("cp: %d; pool: %d; refcnt_opt: %d; refcnt_mutex: %d; q: %s; libev: %d; return: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.optimize_refcount_use_by_copy, configuration.refcount_with_mutex, tm_queue_type_to_str(configuration.queue_type), configuration.use_libev, configuration.return_pointers_through_pipes);
+	TM_LOG_TRACE("cp: %d; pool: %d; refcnt_opt: %d; refcnt_mutex: %d; q: %s; thread_module: %s; return: %d", configuration.copy_block_on_transfer, configuration.use_mempool, configuration.optimize_refcount_use_by_copy, configuration.refcount_with_mutex, tm_queue_type_to_str(configuration.queue_type), tm_threads_type_to_str(configuration.thread_module_type), configuration.return_pointers_through_pipes);
 
 	return ConfigurationStatus_SUCCESS;
 

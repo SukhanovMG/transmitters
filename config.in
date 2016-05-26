@@ -15,21 +15,27 @@ BitrateDiff = 10
 TestTime = 10
 
 # Флаг копирования блока при передаче от главного потока к рабочему
-CopyBlockOnTransfer = @FOR_CONFIG_COPY_BLOCK_ON_TRANSFER@
+CopyBlockOnTransfer = false
 
 # Флаг использования пула предвыделенной памяти для блоков.
-UseMemPool = @FOR_CONFIG_USE_MEMPOOL@
+UseMemPool = @CFG_MEMPOOL@
 
-# kTmQueueSimple = 0
-# kTmQueueSimpleMempool = 1
-# kTmQueueRbuf = 2
-# kTmQueueLockless = 3
-QueueType = 0
+# Тип очереди
+# kTmQueueSimple = 0 - обычная очередь на основе списка
+# kTmQueueSimpleMempool = 1 - та же очередь, но элементы очереди берутся из пула
+# kTmQueueRbuf = 2 - очередь, основанная на циклическом буфере
+QueueType = @CFG_QUEUE_TYPE@
 
-OptimizeRefcountUseByCopy = false
-
+# Снижение конкуренции за счётчик ссылок копированием
+OptimizeRefcountUseByCopy = true
+# Использование мьютекса в счётчике ссылок
 RefCountWithMutex = false
 
-# Флаг использования libev
-UseLibev = @FOR_CONFIG_USE_LIBEV@
-ReturnPointersThroughPipes = @FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES@
+# Тип модуля потоков
+# TMThreadType_Simple = 0 - императивная парадигма
+# TMThreadType_Libev_queue = 1 - событийно-ориентированная парадигма, очередь
+# TMThreadType_Libev_pipe = 2 - событийно-ориентированная парадигма, канал
+ThreadModuleType = @CFG_THREAD_MODULE_TYPE@
+
+# Только для libev с каналами, возврат блоков по каналам
+ReturnPointersThroughPipes = true

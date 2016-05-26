@@ -19,19 +19,42 @@ typedef struct {
 
 thread_module_ctx_t thread_module_ctx;
 
+const char * tm_threads_type_to_str(TMThreadType type)
+{
+	switch (type) {
+		case TMThreadType_Simple:
+			return "simple";
+		case TMThreadType_Libev_queue:
+			return "libev_queue";
+		case TMThreadType_Libev_pipe:
+		default:
+			return "libev_pipe";
+	}
+}
+
 TMThreadStatus tm_threads_init(int count)
 {
 	TMThreadStatus status = TMThreadStatus_ERROR;
 
-	if (configuration.use_libev) {
-		thread_module_ctx.init = tm_threads_init_events_queue;
-		thread_module_ctx.work = tm_threads_work_events_queue;
-		thread_module_ctx.shutdown = tm_threads_shutdown_events_queue;
-	} else {
-		thread_module_ctx.init = tm_threads_init_simple;
-		thread_module_ctx.work = tm_threads_work_simple;
-		thread_module_ctx.shutdown = tm_threads_shutdown_simple;
+	switch (configuration.thread_module_type) {
+		case TMThreadType_Simple:
+			thread_module_ctx.init = tm_threads_init_simple;
+			thread_module_ctx.work = tm_threads_work_simple;
+			thread_module_ctx.shutdown = tm_threads_shutdown_simple;
+			break;
+		case TMThreadType_Libev_queue:
+			thread_module_ctx.init = tm_threads_init_events_queue;
+			thread_module_ctx.work = tm_threads_work_events_queue;
+			thread_module_ctx.shutdown = tm_threads_shutdown_events_queue;
+			break;
+		case TMThreadType_Libev_pipe:
+			thread_module_ctx.init = tm_threads_init_events;
+			thread_module_ctx.work = tm_threads_work_events;
+			thread_module_ctx.shutdown = tm_threads_shutdown_events;
+		default:
+			break;
 	}
+
 
 	if (thread_module_ctx.init)
 		status = thread_module_ctx.init(count);

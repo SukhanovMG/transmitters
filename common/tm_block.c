@@ -31,7 +31,7 @@ int tm_block_init()
 	int result = 1;
 
 	block_size = sizeof(tm_block) + configuration.block_size;
-	thread_safe = !(configuration.use_libev && configuration.return_pointers_through_pipes);
+	thread_safe = !(configuration.thread_module_type == TMThreadType_Libev_pipe && configuration.return_pointers_through_pipes);
 
 	if (configuration.use_mempool && !mempool) {
 		mempool = tm_mempool_new(block_size, 1000, thread_safe);

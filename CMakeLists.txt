@@ -39,28 +39,29 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common")
 
 add_subdirectory(common)
 
-set(FOR_CONFIG_USE_LIBEV "false")
-set(FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES "false")
+set(CFG_MEMPOOL "false")
+set(CFG_QUEUE_TYPE "1")
+set(CFG_THREAD_MODULE_TYPE "1")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_no_pool_qpool_thread_libevq" @ONLY)
+set(CFG_MEMPOOL "false")
+set(CFG_QUEUE_TYPE "2")
+set(CFG_THREAD_MODULE_TYPE "1")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_no_pool_qrbuf_thread_libevq" @ONLY)
+set(CFG_MEMPOOL "true")
+set(CFG_QUEUE_TYPE "1")
+set(CFG_THREAD_MODULE_TYPE "1")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_pool_qpool_thread_libevq" @ONLY)
+set(CFG_MEMPOOL "true")
+set(CFG_QUEUE_TYPE "2")
+set(CFG_THREAD_MODULE_TYPE "1")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_pool_qrbuf_thread_libevq" @ONLY)
 
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
-set(FOR_CONFIG_USE_MEMPOOL "false")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_no_mempool" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
-set(FOR_CONFIG_USE_MEMPOOL "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_no_copy_mempool" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "true")
-set(FOR_CONFIG_USE_MEMPOOL "false")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_no_mempool" @ONLY)
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "true")
-set(FOR_CONFIG_USE_MEMPOOL "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_copy_mempool" @ONLY)
-
-set(FOR_CONFIG_COPY_BLOCK_ON_TRANSFER "false")
-set(FOR_CONFIG_USE_MEMPOOL "true")
-set(FOR_CONFIG_USE_LIBEV "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_libev_no_return" @ONLY)
-set(FOR_CONFIG_RETURN_POINTERS_THROUGH_PIPES "true")
-configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.config_libev_return" @ONLY)
+set(CFG_MEMPOOL "false")
+set(CFG_THREAD_MODULE_TYPE "2")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_no_pool_thread_libevpipe" @ONLY)
+set(CFG_MEMPOOL "true")
+set(CFG_THREAD_MODULE_TYPE "2")
+configure_file("config.in" "${EXECUTABLE_OUTPUT_PATH}/.cfg_pool_thread_libevpipe" @ONLY)
 
 configure_file("test.py" "${EXECUTABLE_OUTPUT_PATH}/test.py" COPYONLY)
 configure_file("testall.sh" "${EXECUTABLE_OUTPUT_PATH}/testall.sh" COPYONLY)
@@ -71,16 +72,16 @@ set(SRC main.c tm_thread.c tm_thread_simple.c tm_thread_events.c tm_thread_event
 add_executable("${CMAKE_PROJECT_NAME}" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 add_executable("${CMAKE_PROJECT_NAME}_jemalloc" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
 add_executable("${CMAKE_PROJECT_NAME}_tcmalloc" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
-add_executable("${CMAKE_PROJECT_NAME}_profiling" ${SRC} $<TARGET_OBJECTS:COMMON_MODULES>)
+
 target_link_libraries("${CMAKE_PROJECT_NAME}"
-		rt # Исправить!!!!
+		rt
 		${PTHREAD_LIBRARIES}
 		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
 		${LIBEV_LIBRARIES}
 		)
 
 target_link_libraries("${CMAKE_PROJECT_NAME}_tcmalloc"
-		rt # Исправить!!!!
+		rt
 		${PTHREAD_LIBRARIES}
 		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
 		${LIBEV_LIBRARIES}
@@ -88,18 +89,10 @@ target_link_libraries("${CMAKE_PROJECT_NAME}_tcmalloc"
 		)
 
 target_link_libraries("${CMAKE_PROJECT_NAME}_jemalloc"
-		rt # Исправить!!!!
+		rt
 		${LIBJEMALLOC_DST_DIR}/lib/libjemalloc.a
 		${PTHREAD_LIBRARIES}
 		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
 		${LIBEV_LIBRARIES}
-		)
-
-target_link_libraries("${CMAKE_PROJECT_NAME}_profiling"
-		rt # Исправить!!!!
-		${PTHREAD_LIBRARIES}
-		${LIBCONFIG_DST_DIR}/lib/.libs/libconfig.a
-		${LIBEV_LIBRARIES}
-		${LIBGPERFTOOLS_DST_DIR}/.libs/libtcmalloc_and_profiler.so
 		)
 
