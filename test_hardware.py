@@ -82,13 +82,12 @@ class Test:
 
 nproc = int(subprocess.check_output(["nproc"]))
 exec_names = ['./tm', './tm_tcmalloc']
-#config_names = glob.glob('./cfg*')
-config_names = [".cfg_pool_thread_libevpipe"]
+config_names = glob.glob('./cfg*')
 
 test_arr = []
 for exec_name in exec_names:
 	for config_name in config_names:
-		for i in xrange(1, 2):
+		for i in xrange(1, nproc):
 			test_arr.append(Test(exec_name, config_name, i))
 
 for test in test_arr:
