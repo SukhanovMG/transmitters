@@ -1,3 +1,7 @@
+/*
+ * Модуль для работы со счётчиком ссылок
+ * */
+
 #ifndef TM_REFCOUNT_H
 #define TM_REFCOUNT_H
 
@@ -5,16 +9,20 @@
 
 #include <pthread.h>
 
+// Определение типа указателя на функцию для деструктора
 typedef void (*tm_refcount_destructor)(void *);
 
+// Структура счётчика ссылок
 typedef struct _tm_refcount {
-	volatile unsigned int counter;
-	tm_refcount_destructor destructor;
-	int w_mutex;
-	pthread_mutex_t mutex;
+	volatile unsigned int counter; // Сам счётчик
+	tm_refcount_destructor destructor; // Указатель на функцию для удаления данных
+	int w_mutex; // Флаг использования мьютекса
+	pthread_mutex_t mutex; // мьютекс (если используется)
 } tm_refcount;
 
+// Инициализация счётчика ссылок
 void tm_refcount_init(tm_refcount *, tm_refcount_destructor);
+// Удаление счётчика ссылок
 void tm_refcount_destroy(tm_refcount *);
 
 #if TM_REFCOUNT_DEBUG

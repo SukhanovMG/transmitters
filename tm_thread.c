@@ -6,15 +6,16 @@
 #include "tm_configuration.h"
 #include "tm_logging.h"
 
+// Объялвение типов указателей на функции
 typedef TMThreadStatus(*threads_init_function)(int);
 typedef TMThreadStatus(*threads_work_function)();
 typedef TMThreadStatus(*threads_shutdown_function)();
 
-
+// Контекст модуля потоков
 typedef struct {
-	threads_init_function init;
-	threads_work_function work;
-	threads_shutdown_function shutdown;
+	threads_init_function init; // Указатель на функцию инициализации
+	threads_work_function work; // Указатель на функцию запуска
+	threads_shutdown_function shutdown; // Указатель на функцию останова
 } thread_module_ctx_t;
 
 thread_module_ctx_t thread_module_ctx;

@@ -1,9 +1,5 @@
 /**
- * @file tm_time.h
- * @date 2014
- * @copyright (c) ЗАО "Голлард"
- * @author Роман В. Косинский [armowl]
- * @brief
+ * Функции для работы с временем
  */
 #ifndef TM_TIME_H_
 #define TM_TIME_H_

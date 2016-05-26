@@ -1,8 +1,8 @@
 #include "tm_refcount.h"
 #include "syslog.h"
-#include "tm_logging.h"
 #include "tm_configuration.h"
 
+// Инициализация счётчика ссылок
 inline void tm_refcount_init(tm_refcount *refcount_ctx, tm_refcount_destructor destructor)
 {
 	refcount_ctx->counter = 1;
@@ -14,17 +14,20 @@ inline void tm_refcount_init(tm_refcount *refcount_ctx, tm_refcount_destructor d
 	}
 }
 
+// Удаление счётчика ссылок
 inline void tm_refcount_destroy(tm_refcount *refcount_ctx)
 {
 	if (configuration.refcount_with_mutex)
 		pthread_mutex_destroy(&refcount_ctx->mutex);
 }
 
+// Инкрементация счётчика с помощью атомарной операции
 static void retain_w_atomic(tm_refcount *refcount_ctx)
 {
 	__sync_fetch_and_add(&refcount_ctx->counter, 1);
 }
 
+// Инекрементация счётчика с помощью мьютекса и обычного оператора
 static void retain_w_mutex(tm_refcount *refcount_ctx)
 {
 	pthread_mutex_lock(&refcount_ctx->mutex);
@@ -32,6 +35,7 @@ static void retain_w_mutex(tm_refcount *refcount_ctx)
 	pthread_mutex_unlock(&refcount_ctx->mutex);
 }
 
+// Инкрементация счётчика ссылок
 static void *inner_tm_refcount_retain(void *obj, int thread_safe)
 {
 	tm_refcount *refcount_ctx = (tm_refcount*)obj;
@@ -48,6 +52,8 @@ static void *inner_tm_refcount_retain(void *obj, int thread_safe)
 	return refcount_ctx;
 }
 
+// Декрементация счётчика ссылок с помощью атомарной операции
+// и удаление данных если нужно
 static void release_w_atomic(tm_refcount *refcount_ctx)
 {
 	if (__sync_sub_and_fetch(&refcount_ctx->counter, 1) == 0) {
@@ -56,6 +62,8 @@ static void release_w_atomic(tm_refcount *refcount_ctx)
 	}
 }
 
+// Декрементация счётчика ссылок с помощью мьютекса и обычного оператора
+// и удаление данных если нужно
 static void release_w_mutex(tm_refcount* refcount_ctx)
 {
 	pthread_mutex_lock(&refcount_ctx->mutex);
@@ -67,6 +75,8 @@ static void release_w_mutex(tm_refcount* refcount_ctx)
 	}
 }
 
+// Декрементация счётчика ссылок
+// и удаление данных если нужно
 static void inner_tm_refcount_release(void *obj, int thread_safe)
 {
 	tm_refcount *refcount_ctx = (tm_refcount*)obj;

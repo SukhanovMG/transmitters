@@ -51,9 +51,6 @@ typedef struct {
 	ev_timer w_test_time;              // watcher на таймер, который установлен на длительность теста
 	ev_signal w_signals[SIGNAL_COUNT]; // watcher'ы на сигналы
 	ev_async w_low_bitrate;            // watcher на сигнал о низком битрейте от рабочих потоков
-	ev_async w_pointers_in_queue_return;        // watcher на сигнал о том, что один или более раб. потоков вернули указатели
-	tm_queue_ctx *queue_return;
-	volatile size_t pointers_in_queue_return_count;
 	client_block_t *client_block_array;
 	ev_timer w_next_send_start;// wathcer на таймер до следующей отправки на рабочий потоки
 
@@ -107,11 +104,6 @@ static void pointers_callback(EV_P_ ev_async *w, int revents)
 				tm_block_dispose_block(client_block_array[i].block);
 			}
 			__sync_sub_and_fetch(&thread->pointers_in_queue_count, actual_pop_count);
-			/*
-			tm_queue_push_back(main_thread.queue_return, client_block_array, (int) actual_pop_count);
-			__sync_add_and_fetch(&main_thread.pointers_in_queue_return_count, actual_pop_count);
-			ev_async_send(main_thread.loop, &main_thread.w_pointers_in_queue_return);
-			*/
 		}
 	}
 }
@@ -239,7 +231,6 @@ static void stop_main_thread_watchers()
 	ev_timer_stop(main_thread.loop, &main_thread.w_test_time);
 	ev_timer_stop(main_thread.loop, &main_thread.w_next_send_start);
 	ev_async_stop(main_thread.loop, &main_thread.w_low_bitrate);
-	ev_async_stop(main_thread.loop, &main_thread.w_pointers_in_queue_return);
 }
 
 static void signal_callback(EV_P_ ev_signal *w, int revents)
@@ -266,26 +257,6 @@ static void low_bitrate_callback(EV_P_ ev_async *w, int revents)
 	main_thread.low_bitrate_flag = 1;
 	stop_main_thread_watchers();
 	ev_break(loop, EVBREAK_ONE);
-}
-
-static void pointers_return_callback(EV_P_ ev_async *w, int revents)
-{
-	(void)w; (void)revents;
-	while (__sync_add_and_fetch(&main_thread.pointers_in_queue_return_count, 0) != 0) {
-		size_t pop_count = 1000;
-		size_t actual_pop_count = 0;
-		client_block_t client_block_array[pop_count];
-		int pop_res = tm_queue_pop_front(main_thread.queue_return, client_block_array, (int) pop_count);
-		if (pop_res) {
-			for (size_t i = 0; i < pop_count; i++) {
-				if (client_block_array[i].block == NULL)
-					break;
-				tm_block_dispose_block(client_block_array[i].block);
-				actual_pop_count++;
-			}
-		}
-		__sync_sub_and_fetch(&main_thread.pointers_in_queue_return_count, actual_pop_count);
-	}
 }
 
 TMThreadStatus tm_threads_init_events_queue(int count)
@@ -315,8 +286,6 @@ TMThreadStatus tm_threads_init_events_queue(int count)
 
 	ev_async_init(&main_thread.w_low_bitrate, low_bitrate_callback);
 	ev_async_start(main_thread.loop, &main_thread.w_low_bitrate);
-	ev_async_init(&main_thread.w_pointers_in_queue_return, pointers_return_callback);
-	ev_async_start(main_thread.loop, &main_thread.w_pointers_in_queue_return);
 
 	clients_count = (size_t) configuration.clients_count / count;
 	for(int i = 0; i < count; i++) {
@@ -328,11 +297,6 @@ TMThreadStatus tm_threads_init_events_queue(int count)
 
 	main_thread.client_block_array = tm_alloc(sizeof(client_block_t) * main_thread.work_threads[0].clients_count);
 	if (!main_thread.client_block_array) {
-		return status;
-	}
-
-	main_thread.queue_return = tm_queue_create(kTmQueueLockless);
-	if (!main_thread.queue_return) {
 		return status;
 	}
 
@@ -370,7 +334,6 @@ TMThreadStatus tm_threads_shutdown_events_queue()
 	for (int i = 0; i < main_thread.work_threads_count; i++) {
 		tm_thread_shutdown(&main_thread.work_threads[i]);
 	}
-	tm_queue_destroy(main_thread.queue_return);
 	tm_free(main_thread.client_block_array);
 	tm_free(main_thread.work_threads);
 	ev_loop_destroy(main_thread.loop);

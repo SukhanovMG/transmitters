@@ -3,15 +3,19 @@
 #include "tm_mempool.h"
 #include <uthash/utlist.h>
 
+// Элемент очерди
 typedef struct _queue_elem_simple {
+	// Указатели для организации списка
 	struct _queue_elem_simple *next;
 	struct _queue_elem_simple *prev;
+	// Данные, которые положены в очередь
 	client_block_t client_block;
 } queue_elem_simple;
 
+// Контекст очереди
 typedef struct _queue_simple {
-	queue_elem_simple *head;
-	tm_mempool *pool;
+	queue_elem_simple *head; // Указатель на голову
+	tm_mempool *pool; // Указатель на пул (если используется)
 } queue_simple;
 
 void tm_queue_destroy_simple(void *_q)

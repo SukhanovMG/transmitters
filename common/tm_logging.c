@@ -1,15 +1,7 @@
 /**
- * @file common/tm_logging.c
- * @date 2014
- * @copyright (c) ЗАО "Голлард"
- * @author Олег В. Карпов
- * @author Роман В. Косинский [armowl]
- * @brief Функции работы с логированием
+ * Функции работы с логированием
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>

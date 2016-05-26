@@ -21,9 +21,11 @@
 #define TM_LOG_DTRACE TM_LOG_TRACE
 #endif
 
-
+// Пул для блоков (если задано в конфигурационном файле)
 static tm_mempool* mempool = NULL;
+// Размер блока (всего блока, а в конфиге размер поля данных)
 static size_t block_size;
+// Флаг потокобезопасности
 static int thread_safe = 1;
 
 int tm_block_init()
@@ -31,6 +33,7 @@ int tm_block_init()
 	int result = 1;
 
 	block_size = sizeof(tm_block) + configuration.block_size;
+	// Если исп-ся каналы и возврат по каналам, то пул использует только главный поток, и потокобезопасноть не нужна
 	thread_safe = !(configuration.thread_module_type == TMThreadType_Libev_pipe && configuration.return_pointers_through_pipes);
 
 	if (configuration.use_mempool && !mempool) {

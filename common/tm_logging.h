@@ -1,10 +1,5 @@
 /**
- * @file tm_logging.h
- * @date 2014-2015
- * @copyright (c) ЗАО "Голлард"
- * @author Олег В. Карпов
- * @author Роман В. Косинский [armowl]
- * @brief Функции работы с логированием
+ * Функции работы с логированием
  */
 
 #ifndef LOG4CEXT_H
@@ -26,6 +21,7 @@ typedef enum _TMLogStatus {
 	TMLogStatus_ERROR /*!< Ошибка выполнения */
 } TMLogStatus;
 
+// Уровни логгирования
 typedef enum _TMLogTypes {
 	TMLogTypes_INFO,
 	TMLogTypes_ERROR,
@@ -47,6 +43,7 @@ void _tm_log_string(const char *file, const char *line, const char *function, TM
 #define TM_LOG_STRX(x) TM_LOG_STR(x)
 #define TM_LOG_PREFIX ""
 
+// Макросы для вывода в лог с разными уровнями логгирования
 #define TM_LOG_INFO(...)    _tm_log_string(__FILE__, TM_LOG_STRX(__LINE__), __FUNCTION__, TMLogTypes_INFO,    TM_LOG_PREFIX, "" __VA_ARGS__)
 #define TM_LOG_ERROR(...)   _tm_log_string(__FILE__, TM_LOG_STRX(__LINE__), __FUNCTION__, TMLogTypes_ERROR,   TM_LOG_PREFIX, "" __VA_ARGS__)
 #define TM_LOG_CRIT(...)    _tm_log_string(__FILE__, TM_LOG_STRX(__LINE__), __FUNCTION__, TMLogTypes_CRIT,    TM_LOG_PREFIX, "" __VA_ARGS__)

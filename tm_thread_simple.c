@@ -12,24 +12,29 @@
 #include <math.h>
 #include <tm_queue.h>
 
+// Структура рабочего потока
 typedef struct _tm_thread_t {
-	pthread_t thread;
-	tm_queue_ctx *queue;
-	pthread_mutex_t q_mutex;
-	pthread_cond_t q_cond;
-	volatile int shutdown;
-	tm_time_bitrate *bitrate_ctx;
-	int clients_count;
+	pthread_t thread; // идентификатор потока
+	tm_queue_ctx *queue; // очередь для передачи данных потоку
+	pthread_mutex_t q_mutex; // мьютекс для очереди
+	pthread_cond_t q_cond; // условная переменная для очереди
+	volatile int shutdown; // флаг завершения
+	tm_time_bitrate *bitrate_ctx; // контекст расчёта битрейта
+	int clients_count; // количество клиентов
 } tm_thread_t;
 
+// Конекст главного потока
 typedef struct _tm_threads_t {
-	tm_thread_t *threads;
-	int threads_num;
-	double start_time;
+	tm_thread_t *threads; // Рабочие потоки
+	int threads_num; // Количество рабочих потоков
+	double start_time; // Время начала теста
 } tm_threads_t;
 
+// Флаг завершения
 static int tm_shutdown_flag = 0;
+// Флаг низкого битрейта
 static int tm_low_bitrate_flag = 0;
+// Контекст главного потока
 static tm_threads_t work_threads;
 
 static int need_to_shutdown_thread(tm_thread_t *thread_ctx)

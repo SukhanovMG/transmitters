@@ -1,15 +1,15 @@
 #include "tm_queue_rbuf.h"
 
-#include "tm_configuration.h"
-
+// Длина буфера
 #define RBUF_LENGTH 8000000
 
+// Контекст очереди на основе циклического буфера
 typedef struct _queue_rbuf {
-	client_block_t *buffer;
-	size_t length;
-	size_t count;
-	size_t write;
-	size_t read;
+	client_block_t *buffer; // Буфер
+	size_t length;          // Длина буфера
+	size_t count;           // Количество элементов в очереди
+	size_t write;           // Позиция записи в буфер
+	size_t read;            // Позиция чтения из буфера
 } queue_rbuf;
 
 void tm_queue_destroy_rbuf(void *_q)

@@ -1,18 +1,16 @@
 #include "tm_queue.h"
 #include "tm_queue_simple.h"
 #include "tm_queue_rbuf.h"
-#include "tm_alloc.h"
-#include "tm_configuration.h"
 #include <stdlib.h>
-#include <uthash/utlist.h>
-#include <jemalloc/jemalloc.h>
 
+// Объявление типов укзателей на функции для работы с очередью
 typedef void *          (*queue_backend_create)    (void);
 typedef void            (*queue_backend_destroy)   (void *);
 typedef int             (*queue_backend_push_back) (void *, client_block_t *);
 typedef client_block_t  (*queue_backend_pop_front) (void *);
 typedef int             (*queue_backend_is_empty)  (void *);
 
+// Заполнить укзатели для обычной очереди
 #define SIMPLE_QUEUE_BACKEND(backend) \
 do { \
 	backend.ctx = NULL; \
@@ -23,6 +21,7 @@ do { \
 	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_simple; \
 } while (0)
 
+// Заполнить укзатели для очереди на циклическом буфере
 #define RBUF_QUEUE_BACKEND(backend) \
 do { \
 	backend.ctx = NULL; \
@@ -33,7 +32,9 @@ do { \
 	backend.is_empty_func = (queue_backend_is_empty) tm_queue_is_empty_rbuf; \
 } while (0)
 
+// Контекст очереди
 typedef struct _queue_ctx {
+	// Указатели на саму очередь и на функции для работы с ней
 	struct {
 		void *ctx;
 		queue_backend_create create_func;
@@ -42,7 +43,8 @@ typedef struct _queue_ctx {
 		queue_backend_pop_front pop_front_func;
 		queue_backend_is_empty is_empty_func;
 	} backend;
-
+	
+	// Тип очереди
 	tm_queue_type queue_type;
 } queue_ctx;
 
@@ -131,8 +133,6 @@ const char *tm_queue_type_to_str(tm_queue_type type)
 			return "list_pool";
 		case kTmQueueRbuf:
 			return "rbuf";
-		case kTmQueueLockless:
-			return "lockless";
 		default:
 			return "unknown";
 	}

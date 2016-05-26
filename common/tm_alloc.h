@@ -1,3 +1,7 @@
+/*
+ * Модуль для работы с памятью
+ * */
+
 #ifndef TM_ALLOC_H
 #define TM_ALLOC_H
 

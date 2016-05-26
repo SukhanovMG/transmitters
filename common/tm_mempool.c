@@ -8,23 +8,27 @@
 
 #include <pthread.h>
 
+// Элемент пула
 typedef struct _mempool_elem {
+	// Указатели для организации элементов в очередь
 	struct _mempool_elem *next;
 	struct _mempool_elem *prev;
 
+	// Поле данных
 	char data[];
 } mempool_elem;
 
+// Пул
 typedef struct _mempool {
-	pthread_mutex_t mutex;
-	int thread_safe;
+	pthread_mutex_t mutex; // Мьютекс при потокобезопасном режиме
+	int thread_safe; // Флаг использования потокобезопасности
 
-	size_t elem_size;
-	size_t count;
-	size_t free;
+	size_t elem_size; // Размер поля данных элемента пула
+	size_t count;     // Число элементов в пуле
+	size_t free;      // Число доступных элементов в пуле
 
-	mempool_elem *initial_elements;
-	mempool_elem *elements;
+	mempool_elem *initial_elements; // Указатели на изначальные выделенные блоки памяти
+	mempool_elem *elements;         // Указатели на сами элементы, которые будут выданы
 } mempool;
 
 
@@ -52,6 +56,7 @@ void tm_mempool_delete(tm_mempool *pool)
 	}
 }
 
+// Увеличить пул
 static int tm_mempool_grow(mempool* pool, size_t count)
 {
 	int ret = 0;
